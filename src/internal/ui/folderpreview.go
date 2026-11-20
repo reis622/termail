@@ -59,7 +59,7 @@ func (m *Model) folderPreview() tea.Cmd {
 			label = f.Label()
 		}
 		if r.read {
-			label = readTitle
+			label = readTitle()
 		}
 		m.pendingF = &pendingFolder{acct: r.acct, folder: r.folder, read: r.read, label: label, seq: m.previewSeq}
 	case rowUnified, rowSaved:

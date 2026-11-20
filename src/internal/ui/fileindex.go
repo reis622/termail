@@ -13,6 +13,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"termail/internal/account"
+	"termail/internal/i18n"
 )
 
 type indexItem struct {
@@ -234,8 +235,8 @@ func userQuickEntries() []quickEntry {
 		label string
 		names []string
 	}{
-		{"Masaüstü", []string{"Desktop", "Masaüstü"}},
-		{"İndirilenler", []string{"Downloads", "İndirilenler"}},
+		{i18n.T("Masaüstü"), []string{"Desktop", i18n.T("Masaüstü")}},
+		{i18n.T("İndirilenler"), []string{"Downloads", i18n.T("İndirilenler")}},
 		{"Belgeler", []string{"Documents", "Belgeler"}},
 		{"Resimler", []string{"Pictures", "Resimler"}},
 	}

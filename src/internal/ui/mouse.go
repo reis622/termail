@@ -40,7 +40,7 @@ const (
 	hitSearch                            // the search row above the list
 	hitScope                             // the search scope label (Bu klasör / ...)
 	hitRecent                            // idx = recent search
-	hitChip                              // idx = filter hint (search.FilterHints)
+	hitChip                              // idx = filter hint (search.FilterHints())
 	hitAttachment                        // the "Ek: N dosya" header line: opens the second tab
 	hitReaderTab                         // idx 0 = Mail, 1 = Ekler ve Bağlantılar
 	hitTabItem                           // idx = row of the second tab
@@ -538,7 +538,7 @@ func (m *Model) click(x, y int, h hit) tea.Cmd {
 		return nil
 	case hitScope:
 		if m.search != nil {
-			m.search.scope = (m.search.scope + 1) % len(scopeNames)
+			m.search.scope = (m.search.scope + 1) % len(scopeNames())
 			return m.searchChanged()
 		}
 		return nil
@@ -548,8 +548,8 @@ func (m *Model) click(x, y int, h hit) tea.Cmd {
 		}
 		return nil
 	case hitChip:
-		if m.search != nil && h.idx < len(search.FilterHints) {
-			return m.insertFilter(search.FilterHints[h.idx])
+		if m.search != nil && h.idx < len(search.FilterHints()) {
+			return m.insertFilter(search.FilterHints()[h.idx])
 		}
 		return nil
 	case hitListRow:

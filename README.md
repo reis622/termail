@@ -38,6 +38,16 @@ Kurulum programı senin kullanıcı klasörüne (`%LOCALAPPDATA%\Programs\Termai
 
 Önce denemek istersen: `termail --demo` örnek postalarla açılır, hiçbir şey göndermez.
 
+### Dil
+
+Arayüz Türkçe ve İngilizce'dir. Dil üç yolla seçilir:
+
+- `%APPDATA%\Termail\config.json` içinde `"language": "tr"` veya `"language": "en"`
+- Bu alan yoksa Windows'un arayüz diline bakılır (`GetUserDefaultUILanguage`): Türkçe ise `tr`, değilse `en`
+- Program açıkken `?` kısayollar ekranında **L** ile değiştirilir (tuşa basılabilir, tıklanabilir); seçim `config.json` dosyasına yazılır
+
+Kısayol tuşları dil değişince aynı kalır; yalnızca yazılar değişir. Onay hâlâ **e** / **h** tuşlarındadır. Aramada hem Türkçe hem İngilizce süzgeçler çalışır: `kimden:` / `from:`, `kime:` / `to:`, `ekli` / `has:attachment`, `okunmamış` / `unread`, `kaydedilen` / `saved`, `bugün` / `today`, `dün` / `yesterday`, `bu hafta` / `this week`, `bu ay` / `this month`.
+
 ### Gmail
 
 Gmail normal şifreni kabul etmez; bunun yerine bir **uygulama şifresi** ister.
@@ -100,11 +110,11 @@ Hangi bölümde olduğun her zaman bellidir: **etkin bölmenin çerçevesi mavi*
 | c | İletinin metninin tamamını panoya kopyala ("Metin kopyalandı") |
 | C (Shift+c) | Gönderenin e-posta adresini kopyala ("Adres kopyalandı") |
 
-**Gelen Kutusu** yalnızca okunmamış iletileri gösterir. Okunanlar, her hesapta Gelen Kutusu'nun hemen altındaki **Okunanlar** klasöründedir (Tüm Gelen Kutuları'nın altında da tüm hesapların Okunanlar'ı vardır). Okunanlar sunucuda ayrı bir klasör değildir; gelen kutusundaki okunmuş iletilerdir, hiçbir ileti taşınmaz. En son açılan / okunan ileti listenin en üstündedir. Okunanlar'da sayı gösterilmez.
+**Gelen Kutusu** (ve Tüm Gelen Kutuları) bütün iletileri gösterir: okunmamışlar daha belirgin, okunmuşlar biraz soluk durur. Ayrı bir **Okunanlar** klasörü artık yoktur; okunan ileti Gelen Kutusu'nda yerinde kalır. (Önceki sürümlerde Gelen Kutusu yalnız okunmamışları listeler, okunmuşlar sanal bir Okunanlar görünümünde dururdu.)
 
 Açılışta son oturumun ileti listesi hemen görünür; geri kalanı en yeniden eskiye büyük sayfalar halinde yüklenir. Liste henüz tamam değilse üstte **Yükleniyor 420/3800** gibi bir yazı çıkar.
 
-Bir ileti yalnızca Enter, →, çift tık, **t** ya da **o** ile açıldığında okundu sayılır ve Okunanlar'a geçer. Üzerinde durmak, yanda önizlemek okundu yapmaz. Enter ile okurken ileti listede yerinde kalır; listeye dönünce Gelen Kutusu'ndan çıkar ve sıradaki okunmamış ileti seçilir. **i** okundu/okunmadı arasında geçer; ileti siz klasörden çıkana ya da yenileyene kadar yerinde kalır, liste zıplamaz. Arama ve gönderene göre gruplama iki görünümde de çalışır.
+Bir ileti yalnızca Enter, →, çift tık, **t** ya da **o** ile açıldığında okundu sayılır. Üzerinde durmak veya yanda önizlemek okundu yapmaz. **i** okundu/okunmadı arasında geçer; ileti siz klasörden çıkana ya da yenileyene kadar yerinde kalır, liste zıplamaz. Arama ve gönderene göre gruplama okunmuş ve okunmamış iletilerde çalışır.
 
 Alttaki tuş çubuğu yalnızca o ekranın en sık kullanılan kısayollarını gösterir (listede →/Enter, t, n, r, d, k, o, /; iletinin içinde r, a, f, e, ]/[, Esc). Tüm kısayollar **?** yardımında durur; tuşlar çubukta görünmese de çalışır (ör. iletinin içinde Enter hâlâ yanıtlar, o hâlâ tarayıcıda açar). Liste eylemleri (**o**, **t**, **d**, **i**, **k**, **r**, **a**, **f**, Shift+G ve benzeri) klasör panelinden veya okuma panelinden de, seçili / açık ileti üzerinde çalışır (okuma panelinde **e** ekler sekmesidir, arşiv değil).
 
@@ -343,7 +353,31 @@ Denemek için yeniden derlemeden: `TERMAIL_MS_CLIENT_ID` ortam değişkeni veya 
 - Açılış/kapanış süreleri: `termail --zaman` (ya da `TERMAIL_TIMING=1`) süreleri `%APPDATA%\Termail\termail.log` dosyasına `zaman …` satırları olarak yazar (ilk kare, giriş bilgisi, IDLE, klasörler, gelen kutusu ilk sayfa, çıkış). Şifre ya da anahtar asla yazılmaz.
 - Ekran çizimi: her kare pencere boyutuna tam oturtulur (satır sayısı = pencere yüksekliği, her satır en fazla genişlik − 1 hücre; son sütun bilerek boş bırakılır). Pencere boyutu Windows'ta doğrudan konsoldan okunur ve saniyede bir yeniden kontrol edilir. Genişliği terminalden terminale değişen karakterler (emoji, görünmez karakterler, kontrol karakterleri) çizimden önce ayıklanır.
 - Gerçekçi örnek iletiler: `src/internal/samplemail` (imzalı Gmail başlıkları, yalnız HTML, ISO-8859-9 / Windows-1254, iç içe ekler, emoji konular, teslim raporu). Testler, `--demo` ve `cmd/localmail` bunları kullanır.
-- Ekran görüntüleri `screenshots/` klasöründe; `tools/` içindeki betiklerle (`--demo` modunda) üretildi.
+- Ekran görüntüleri `screenshots/` klasöründe; `tools/` içindeki betiklerle (`--demo` modunda) üretildi. `30-preview-tr.png` ve `30-preview-en.png` aynı örnek veriyle Türkçe ve İngilizce ana ekranı gösterir.
+
+## English
+
+Termail is a fast, keyboard-and-mouse terminal email client for Windows. It is a single file (`termail.exe`). Try it offline with `termail --demo` (sample mail only; nothing is sent).
+
+**Language.** The UI is Turkish or English.
+
+- In `%APPDATA%\Termail\config.json`, set `"language": "tr"` or `"language": "en"`.
+- If that field is missing, the Windows UI language is used (`GetUserDefaultUILanguage`): Turkish → `tr`, anything else → `en`.
+- While the app is open, press **L** on the `?` shortcuts / help screen (the hint is also clickable). The choice is saved to `config.json`.
+
+Shortcut keys stay the same when you switch language; only the text changes. Confirmations still use **e** (yes) and **h** (no). Search filters accept both languages: `from:` / `kimden:`, `to:` / `kime:`, `has:attachment` / `ekli`, `unread` / `okunmamış`, `saved` / `kaydedilen`, `today` / `bugün`, `yesterday` / `dün`, `this week` / `bu hafta`, `this month` / `bu ay`.
+
+![English main screen (demo data)](screenshots/30-preview-en.png)
+
+**Recent navigation and actions** (same keys in both languages):
+
+- **]** / **[** — next / previous message while reading (without going back to the list; the newly opened message is marked read). This does not apply to a message opened in the browser with `o`.
+- **t** — open the selected message in a Termail tab (same as a double-click).
+- **o** — open the selected message in the default browser (if the body is still loading, Termail says so and opens it when it arrives).
+- Inbox (and All Inboxes) lists every message: unread is brighter, read is dimmer. There is no separate Read / “Okunanlar” folder anymore.
+- **Shift+G** groups the list by sender. On a group heading, **d** deletes all of that sender’s messages in the current view (after confirmation).
+
+Install, Gmail app passwords, Microsoft sign-in, and the rest of the shortcuts are documented in Turkish above (the key bindings themselves do not change).
 
 ## Bilinen sınırlar
 

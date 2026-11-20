@@ -3,6 +3,7 @@ package backend
 import (
 	"errors"
 	"strings"
+	"termail/internal/i18n"
 	"unicode"
 )
 
@@ -41,19 +42,19 @@ func AuthReason(err error) string {
 	var why string
 	switch {
 	case strings.Contains(low, "application-specific password required"):
-		why = "Bu hesap uygulama şifresi istiyor; normal hesap şifren burada çalışmaz. Ctrl + O harfi ile uygulama şifresi al ve onu yapıştır."
+		why = i18n.T("Bu hesap uygulama şifresi istiyor; normal hesap şifren burada çalışmaz. Ctrl + O harfi ile uygulama şifresi al ve onu yapıştır.")
 	case code == "WEBALERT" || strings.Contains(low, "web login required") || strings.Contains(low, "log in via your web browser"):
-		why = "Sağlayıcı önce tarayıcıdan giriş yapmanı istiyor. Tarayıcıda hesabına bir kez gir, güvenlik uyarısını onayla, sonra tekrar dene."
+		why = i18n.T("Sağlayıcı önce tarayıcıdan giriş yapmanı istiyor. Tarayıcıda hesabına bir kez gir, güvenlik uyarısını onayla, sonra tekrar dene.")
 	case strings.Contains(low, "imap") && (strings.Contains(low, "disabled") || strings.Contains(low, "not enabled") || strings.Contains(low, "enable imap")):
-		why = "Hesabında IMAP erişimi kapalı. Gmail'de: Ayarlar → Yönlendirme ve POP/IMAP → IMAP'i etkinleştir."
+		why = i18n.T("Hesabında IMAP erişimi kapalı. Gmail'de: Ayarlar → Yönlendirme ve POP/IMAP → IMAP'i etkinleştir.")
 	case strings.Contains(low, "too many") || strings.Contains(low, "rate limit") || strings.Contains(low, "try again later"):
-		why = "Çok fazla deneme yapıldı. Birkaç dakika bekleyip tekrar dene."
+		why = i18n.T("Çok fazla deneme yapıldı. Birkaç dakika bekleyip tekrar dene.")
 	case code == "AUTHENTICATIONFAILED" || strings.Contains(low, "invalid credentials") || strings.Contains(low, "authentication failed") || strings.Contains(low, "not accepted"):
-		why = "Sunucu adresi ya da şifreyi kabul etmedi. Uygulama şifresi kullanıyorsan yeni bir tane oluşturup boşluksuz olarak yapıştır."
+		why = i18n.T("Sunucu adresi ya da şifreyi kabul etmedi. Uygulama şifresi kullanıyorsan yeni bir tane oluşturup boşluksuz olarak yapıştır.")
 	case code == "ALERT":
-		why = "Sunucu bir uyarı gönderdi."
+		why = i18n.T("Sunucu bir uyarı gönderdi.")
 	default:
-		why = "Giriş reddedildi; e-posta ya da şifre hatalı."
+		why = i18n.T("Giriş reddedildi; e-posta ya da şifre hatalı.")
 	}
 	if t := shortServerText(text); t != "" {
 		why += " (Sunucu: \"" + t + "\")"

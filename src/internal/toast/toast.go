@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"termail/internal/i18n"
 )
 
 // Kind of an action toast.
@@ -120,11 +122,11 @@ func deletedVerb(label, text string) string {
 	s := strings.ToLower(label + " " + text)
 	switch {
 	case strings.Contains(s, "arşiv"):
-		return "arşivlendi"
+		return i18n.T("arşivlendi")
 	case strings.Contains(s, "taşın"):
-		return "taşındı"
+		return i18n.T("taşındı")
 	case strings.Contains(s, "yükle"):
-		return "geri yüklendi"
+		return i18n.T("geri yüklendi")
 	}
 	return "silindi"
 }
@@ -228,9 +230,9 @@ func (m *Manager) Target() (Mail, bool) {
 // Title is the toast heading: "Yeni ileti" or "3 yeni ileti".
 func (m *Manager) Title() string {
 	if len(m.mails) <= 1 {
-		return "Yeni ileti"
+		return i18n.T("Yeni ileti")
 	}
-	return fmt.Sprintf("%d yeni ileti", len(m.mails))
+	return i18n.Tf("%d yeni ileti", len(m.mails))
 }
 
 // Update changes the text of an action toast (progress) and extends it.

@@ -23,6 +23,7 @@ import (
 	"termail/internal/backend"
 	"termail/internal/blocklist"
 	"termail/internal/bodycache"
+	"termail/internal/i18n"
 	"termail/internal/localstore"
 	"termail/internal/mailmsg"
 	"termail/internal/opqueue"
@@ -104,9 +105,9 @@ func (a *Acct) inbox() string {
 // Kind is shown under the account name ("Gmail", "Outlook", "Diğer").
 func (a *Acct) Kind() string {
 	if a.Cfg.Settings.Provider != "" {
-		return a.Cfg.Settings.Provider
+		return i18n.T(a.Cfg.Settings.Provider)
 	}
-	return "Diğer"
+	return i18n.T("Diğer")
 }
 
 type bodyKey struct {
@@ -167,6 +168,8 @@ type Options struct {
 	// Timing logs start-up / exit timings (--zaman, TERMAIL_TIMING=1).
 	Timing bool
 	Start  time.Time // process start (for the timings)
+	// Lang, if set, is applied when the model is created ("tr" or "en").
+	Lang i18n.Lang
 }
 
 // Model is the root Bubble Tea model.
@@ -271,6 +274,9 @@ type Model struct {
 
 // New creates the model.
 func New(opt Options) *Model {
+	if opt.Lang != "" {
+		i18n.Set(opt.Lang)
+	}
 	if opt.Now == nil {
 		opt.Now = time.Now
 	}
@@ -435,7 +441,7 @@ func (m *Model) Init() tea.Cmd {
 		go m.opt.AfterStart(m.send)
 	}
 	if m.opt.OtherInstance {
-		m.toasts.Push(toast.Info, "", "Termail başka bir pencerede zaten açık.", m.opt.Now(), 6*time.Second)
+		m.toasts.Push(toast.Info, "", i18n.T("Termail başka bir pencerede zaten açık."), m.opt.Now(), 6*time.Second)
 	}
 	return tea.Batch(cmds...)
 }
@@ -511,30 +517,30 @@ func friendly(err error) string {
 	case authMsg(err) != "":
 		return authMsg(err)
 	case errors.Is(err, backend.ErrMsgGone):
-		return "İleti sunucuda bulunamadı; başka bir yerden silinmiş ya da taşınmış olabilir."
+		return i18n.T("İleti sunucuda bulunamadı; başka bir yerden silinmiş ya da taşınmış olabilir.")
 	case errors.Is(err, backend.ErrFlagNotApplied):
-		return "Sunucu değişikliği kabul etmedi."
+		return i18n.T("Sunucu değişikliği kabul etmedi.")
 	case errors.Is(err, mailmsg.ErrUnreadable):
-		return "Bu ileti görüntülenemedi."
+		return i18n.T("Bu ileti görüntülenemedi.")
 	case errors.Is(err, backend.ErrAuth):
 		return backend.AuthReason(err)
 	case errors.Is(err, context.DeadlineExceeded):
-		return "Sunucu zamanında yanıt vermedi."
+		return i18n.T("Sunucu zamanında yanıt vermedi.")
 	case errors.Is(err, context.Canceled):
-		return "İşlem iptal edildi."
+		return i18n.T("İşlem iptal edildi.")
 	case errors.Is(err, io.EOF), errors.Is(err, io.ErrUnexpectedEOF):
-		return "Sunucu bağlantıyı beklenmedik şekilde kapattı."
+		return i18n.T("Sunucu bağlantıyı beklenmedik şekilde kapattı.")
 	case errors.As(err, &ne):
-		return "Sunucuya ulaşılamadı. İnternet bağlantını kontrol et."
+		return i18n.T("Sunucuya ulaşılamadı. İnternet bağlantını kontrol et.")
 	}
 	s := err.Error()
 	if strings.Contains(s, "certificate") || strings.Contains(s, "x509") {
-		return "Sunucunun güvenlik sertifikası doğrulanamadı; bağlanılmadı."
+		return i18n.T("Sunucunun güvenlik sertifikası doğrulanamadı; bağlanılmadı.")
 	}
 	if strings.Contains(s, "no such host") || strings.Contains(s, "connection refused") {
-		return "Sunucuya ulaşılamadı."
+		return i18n.T("Sunucuya ulaşılamadı.")
 	}
-	return "Bir sorun oluştu, tekrar dene."
+	return i18n.T("Bir sorun oluştu, tekrar dene.")
 }
 
 func (m *Model) logErr(what string, err error) {
@@ -562,7 +568,7 @@ func (m *Model) acct() *Acct {
 }
 
 // readTitle is the virtual folder of read inbox mail.
-const readTitle = "Okunanlar"
+func readTitle() string { return i18n.T("Okunanlar") }
 
 // inUnreadList tells which half of the inbox a mail belongs to: Gelen
 // Kutusu (unread) or Okunanlar (read, no server move). A mail toggled with

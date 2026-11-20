@@ -14,6 +14,7 @@ import (
 	"termail/internal/backend"
 	"termail/internal/blocklist"
 	"termail/internal/demo"
+	"termail/internal/i18n"
 	"termail/internal/install"
 	"termail/internal/localstore"
 	"termail/internal/single"
@@ -27,35 +28,36 @@ var version = "1.0.0"
 var procStart = time.Now()
 
 func main() {
+	resolveLang()
 	if len(os.Args) > 1 {
 		switch strings.ToLower(os.Args[1]) {
 		case "kur", "install":
 			if err := install.Install(os.Stdout); err != nil {
-				fmt.Fprintln(os.Stderr, "Kurulum tamamlanamadı:", err)
+				fmt.Fprintln(os.Stderr, i18n.T("Kurulum tamamlanamadı:"), err)
 				os.Exit(1)
 			}
 			return
 		case "kaldır", "kaldir", "uninstall":
 			if err := install.Uninstall(os.Stdout); err != nil {
-				fmt.Fprintln(os.Stderr, "Kaldırma tamamlanamadı:", err)
+				fmt.Fprintln(os.Stderr, i18n.T("Kaldırma tamamlanamadı:"), err)
 				os.Exit(1)
 			}
 			return
 		}
 	}
-	demoMode := flag.Bool("demo", false, "örnek postalarla çevrimdışı deneme modu (hiçbir şey gönderilmez)")
-	demoNew := flag.Int("demo-newmail", 1, "deneme modunda gelecek yeni ileti sayısı")
-	demoDelay := flag.Duration("demo-delay", 2*time.Second, "deneme modunda yeni iletinin gelme süresi")
-	demoSpam := flag.Duration("demo-spam-after", 0, "deneme modunda engelli bir alan adından ileti gelme süresi (0 = yok)")
-	login := flag.Bool("login", false, "giriş ekranını göster")
-	timing := flag.Bool("zaman", false, "açılış ve kapanış sürelerini günlük dosyasına yaz (TERMAIL_TIMING=1 ile de olur)")
-	ver := flag.Bool("version", false, "sürümü göster")
+	demoMode := flag.Bool("demo", false, i18n.T("örnek postalarla çevrimdışı deneme modu (hiçbir şey gönderilmez)"))
+	demoNew := flag.Int("demo-newmail", 1, i18n.T("deneme modunda gelecek yeni ileti sayısı"))
+	demoDelay := flag.Duration("demo-delay", 2*time.Second, i18n.T("deneme modunda yeni iletinin gelme süresi"))
+	demoSpam := flag.Duration("demo-spam-after", 0, i18n.T("deneme modunda engelli bir alan adından ileti gelme süresi (0 = yok)"))
+	login := flag.Bool("login", false, i18n.T("giriş ekranını göster"))
+	timing := flag.Bool("zaman", false, i18n.T("açılış ve kapanış sürelerini günlük dosyasına yaz (TERMAIL_TIMING=1 ile de olur)"))
+	ver := flag.Bool("version", false, i18n.T("sürümü göster"))
 	flag.Usage = func() {
 		o := flag.CommandLine.Output()
-		fmt.Fprintln(o, "Kullanım:")
-		fmt.Fprintln(o, "  termail          programı açar")
-		fmt.Fprintln(o, "  termail kur      programı bilgisayara kurar; sonra her terminalde termail yazman yeter")
-		fmt.Fprintln(o, "  termail kaldır   kurulumu geri alır (ayarların ve girişlerin korunur)")
+		fmt.Fprintln(o, i18n.T("Kullanım:"))
+		fmt.Fprintln(o, i18n.T("  termail          programı açar"))
+		fmt.Fprintln(o, i18n.T("  termail kur      programı bilgisayara kurar; sonra her terminalde termail yazman yeter"))
+		fmt.Fprintln(o, i18n.T("  termail kaldır   kurulumu geri alır (ayarların ve girişlerin korunur)"))
 		fmt.Fprintln(o, "\nSeçenekler:")
 		flag.PrintDefaults()
 	}
@@ -78,7 +80,7 @@ func main() {
 		}
 		cfg, err := account.Load()
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "Ayarlar okunamadı:", err)
+			fmt.Fprintln(os.Stderr, i18n.T("Ayarlar okunamadı:"), err)
 			os.Exit(1)
 		}
 		opt.Config = cfg
@@ -90,7 +92,7 @@ func main() {
 		dir, _ := account.Dir()
 		opt.Blocks, err = blocklist.Load(filepath.Join(dir, "blocklist.json"))
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "Engellenenler listesi okunamadı:", err)
+			fmt.Fprintln(os.Stderr, i18n.T("Engellenenler listesi okunamadı:"), err)
 		}
 		if lf, err := openLog(dir); err == nil {
 			defer lf.Close()
@@ -121,7 +123,7 @@ func main() {
 		if opt.OnExit != nil {
 			opt.OnExit()
 		}
-		fmt.Fprintln(os.Stderr, "Termail beklenmedik şekilde kapandı:", err)
+		fmt.Fprintln(os.Stderr, i18n.T("Termail beklenmedik şekilde kapandı:"), err)
 		os.Exit(1)
 	}
 }
@@ -136,4 +138,15 @@ func openLog(dir string) (*os.File, error) {
 		os.Rename(p, p+".old")
 	}
 	return os.OpenFile(p, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+}
+
+// resolveLang uses config.json "language" when set, otherwise the OS UI language.
+func resolveLang() {
+	lang := i18n.Detect()
+	if cfg, err := account.Load(); err == nil && cfg != nil && cfg.Language != "" {
+		if l, ok := i18n.Parse(cfg.Language); ok {
+			lang = l
+		}
+	}
+	i18n.Set(lang)
 }

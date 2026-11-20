@@ -7,6 +7,7 @@ import (
 
 	"termail/internal/backend"
 	"termail/internal/grid"
+	"termail/internal/i18n"
 	"termail/internal/mailmsg"
 	"termail/internal/toast"
 )
@@ -40,8 +41,8 @@ type frow struct {
 func (m *Model) folderRows() []frow {
 	var rows []frow
 	if len(m.accts) > 0 {
-		rows = append(rows, frow{kind: rowUnified, label: "≡ " + unifiedTitle, count: m.totalUnread()},
-			frow{kind: rowSaved, label: "★ " + savedTitle, count: savedCount(m.accts)})
+		rows = append(rows, frow{kind: rowUnified, label: "≡ " + unifiedTitle(), count: m.totalUnread()},
+			frow{kind: rowSaved, label: "★ " + savedTitle(), count: savedCount(m.accts)})
 	}
 	for i, a := range m.accts {
 		unread := 0
@@ -59,9 +60,9 @@ func (m *Model) folderRows() []frow {
 			continue
 		}
 		if a.State == stNeedsLogin {
-			rows = append(rows, frow{kind: rowKindLine, acct: i, label: "giriş gerekli (+ tuşu)"})
+			rows = append(rows, frow{kind: rowKindLine, acct: i, label: i18n.T("giriş gerekli (+ tuşu)")})
 		} else if a.State == stOffline {
-			rows = append(rows, frow{kind: rowKindLine, acct: i, label: "çevrimdışı"})
+			rows = append(rows, frow{kind: rowKindLine, acct: i, label: i18n.T("çevrimdışı")})
 		}
 		for _, r := range backend.RoleOrder {
 			if r == backend.RoleFlagged || r == backend.RoleArchive || r == backend.RoleAll {
@@ -82,7 +83,7 @@ func (m *Model) folderRows() []frow {
 			rows = append(rows, frow{kind: rowNewFolder, acct: i})
 		}
 		if len(a.Folders) == 0 && a.State == stConnecting && (m.newFolder == nil || m.newFolder.acct != i) {
-			rows = append(rows, frow{kind: rowHeading, acct: i, label: "Yükleniyor…"})
+			rows = append(rows, frow{kind: rowHeading, acct: i, label: i18n.T("Yükleniyor…")})
 		}
 	}
 	return rows
@@ -208,15 +209,15 @@ func (m *Model) finish(g *grid.Grid) string {
 
 func accountStatusLabel(a *Acct) (string, string) {
 	if a == nil {
-		return "Çevrimiçi", cGreen
+		return i18n.T("Çevrimiçi"), cGreen
 	}
 	switch a.State {
 	case stOffline, stNeedsLogin:
-		return "Çevrimdışı", cYellow
+		return i18n.T("Çevrimdışı"), cYellow
 	case stConnecting:
-		return "Bağlanıyor", cAccent
+		return i18n.T("Bağlanıyor"), cAccent
 	}
-	return "Çevrimiçi", cGreen
+	return i18n.T("Çevrimiçi"), cGreen
 }
 
 func acctDisplayName(a *Acct) string {
@@ -277,7 +278,7 @@ func (m *Model) statusText() (string, string) {
 		// so one mailbox going down is not painted as if every account were down.
 		if (m.virt == viewUnified || m.virt == viewSaved) && m.tabs[m.active].kind == tabList &&
 			(a.State == stOffline || a.State == stNeedsLogin) {
-			return acctDisplayName(a) + " çevrimdışı", col
+			return acctDisplayName(a) + i18n.T(" çevrimdışı"), col
 		}
 		return label, col
 	}
@@ -293,13 +294,13 @@ func (m *Model) statusText() (string, string) {
 	}
 	switch {
 	case len(offline) == 1:
-		return acctDisplayName(offline[0]) + " çevrimdışı", cYellow
+		return acctDisplayName(offline[0]) + i18n.T(" çevrimdışı"), cYellow
 	case len(offline) > 1:
-		return fmt.Sprintf("%d çevrimdışı", len(offline)), cYellow
+		return i18n.Tf("%d çevrimdışı", len(offline)), cYellow
 	case connecting:
-		return "Bağlanıyor", cAccent
+		return i18n.T("Bağlanıyor"), cAccent
 	}
-	return "Çevrimiçi", cGreen
+	return i18n.T("Çevrimiçi"), cGreen
 }
 
 func (m *Model) drawHeader(g *grid.Grid, t *tab) {
@@ -310,15 +311,15 @@ func (m *Model) drawHeader(g *grid.Grid, t *tab) {
 	case tabCompose:
 		ctx = t.compose.headerText()
 	case tabRead:
-		ctx = "İleti okunuyor"
+		ctx = i18n.T("İleti okunuyor")
 	default:
 		switch {
 		case m.virt == viewUnified && m.readView:
-			ctx = readTitle + " · tüm hesaplar"
+			ctx = readTitle() + i18n.T(" · tüm hesaplar")
 		case m.virt == viewUnified:
-			ctx = unifiedTitle
+			ctx = unifiedTitle()
 		case m.virt == viewSaved:
-			ctx = savedTitle
+			ctx = savedTitle()
 		default:
 			if a := m.acct(); a != nil {
 				ctx = a.Cfg.Email // the account name is on the chip / panel title
@@ -344,20 +345,20 @@ func (m *Model) tabTitle(i int) (icon, title, flag string) {
 	t := m.tabs[i]
 	switch t.kind {
 	case tabList:
-		name := "Gelen Kutusu"
+		name := i18n.T("Gelen Kutusu")
 		if m.virt == viewUnified && m.readView {
-			return "≡", readTitle, ""
+			return "≡", readTitle(), ""
 		} else if m.virt == viewUnified {
-			return "≡", unifiedTitle, ""
+			return "≡", unifiedTitle(), ""
 		} else if m.virt == viewSaved {
-			return "★", savedTitle, ""
+			return "★", savedTitle(), ""
 		}
 		if a := m.acct(); a != nil {
 			if f := a.folder(m.folder); f != nil {
 				name = strings.TrimSpace(f.Label())
 			}
 			if m.readView {
-				name = readTitle
+				name = readTitle()
 			}
 		}
 		if m.searching() {
@@ -461,33 +462,33 @@ func (m *Model) drawMain(g *grid.Grid) {
 
 func (m *Model) drawMainKeybar(g *grid.Grid) {
 	if m.focus == focusFolders {
-		items := []keyHint{{"Enter", "Aç"}, {"n", "Yeni"}, {"→", "Liste"}, {"←", "Geri"}, {"Alt+N", "Klasör"}, {"+", "Hesap ekle"}}
+		items := []keyHint{{"Enter", i18n.T("Aç")}, {"n", i18n.T("Yeni")}, {"→", "Liste"}, {"←", i18n.T("Geri")}, {"Alt+N", i18n.T("Klasör")}, {"+", i18n.T("Hesap ekle")}}
 		if r, ok := m.customFolderAtCursor(); ok {
-			items = append(items, keyHint{"d", "Sil"}, keyHint{"r", "Yeniden adlandır"})
+			items = append(items, keyHint{"d", i18n.T("Sil")}, keyHint{"r", i18n.T("Yeniden adlandır")})
 			_ = r
 		}
 		if r, ok := m.folderCursorRow(); ok {
 			switch r.kind {
 			case rowUnified:
 				if !r.read {
-					items = append(items, keyHint{"Shift+D", "Hepsini çöpe"})
+					items = append(items, keyHint{"Shift+D", i18n.T("Hepsini çöpe")})
 				}
 			case rowFolder:
 				if r.acct >= 0 && r.acct < len(m.accts) {
 					f := m.accts[r.acct].folder(r.folder)
 					if emptyable(f) {
-						items = append(items, keyHint{"Shift+D", "Boşalt"})
+						items = append(items, keyHint{"Shift+D", i18n.T("Boşalt")})
 					} else {
-						items = append(items, keyHint{"Shift+D", "Hepsini çöpe"})
+						items = append(items, keyHint{"Shift+D", i18n.T("Hepsini çöpe")})
 					}
 				}
 			}
 		}
-		keybar(g, g.H-1, items, "? Yardım", &m.hits)
+		keybar(g, g.H-1, items, i18n.T("? Yardım"), &m.hits)
 		return
 	}
 	if m.search != nil && m.search.focused {
-		keybar(g, g.H-1, withComposeHint([]keyHint{{"Enter", "Aç"}, {"Tab", "Kapsam"}, {"Esc", "Kapat"}}), "? Yardım", &m.hits)
+		keybar(g, g.H-1, withComposeHint([]keyHint{{"Enter", i18n.T("Aç")}, {"Tab", "Kapsam"}, {"Esc", i18n.T("Kapat")}}), i18n.T("? Yardım"), &m.hits)
 		return
 	}
 	if m.focus == focusReader {
@@ -495,31 +496,31 @@ func (m *Model) drawMainKeybar(g *grid.Grid) {
 		if m.pv != nil {
 			p = m.body(m.pv.key)
 		}
-		keybar(g, g.H-1, m.withSelKeys(withComposeHint(readerKeys(p, true, m.pv != nil && m.pv.attMode))), "? Yardım", &m.hits)
+		keybar(g, g.H-1, m.withSelKeys(withComposeHint(readerKeys(p, true, m.pv != nil && m.pv.attMode))), i18n.T("? Yardım"), &m.hits)
 		return
 	}
-	del := "Sil"
+	del := i18n.T("Sil")
 	trash := m.inTrashView()
 	if trash {
-		del = "Kalıcı sil"
+		del = i18n.T("Kalıcı sil")
 	}
 	if m.onGroupHeader() {
-		del = "Göndereni sil"
-		items := []keyHint{{"Enter", "Aç"}, {"d", del}}
+		del = i18n.T("Göndereni sil")
+		items := []keyHint{{"Enter", i18n.T("Aç")}, {"d", del}}
 		if trash {
-			items = append(items, keyHint{"m", "Geri yükle"})
+			items = append(items, keyHint{"m", i18n.T("Geri yükle")})
 		}
-		items = append(items, keyHint{"Shift+G", "Düz liste"}, keyHint{"/", "Ara"})
-		keybar(g, g.H-1, withComposeHint(items), "? Yardım", &m.hits)
+		items = append(items, keyHint{"Shift+G", i18n.T("Düz liste")}, keyHint{"/", i18n.T("Ara")})
+		keybar(g, g.H-1, withComposeHint(items), i18n.T("? Yardım"), &m.hits)
 		return
 	}
-	items := []keyHint{{"→/Enter", "Aç"}, {"t", "Sekmede aç"}, {"n", "Yeni"}, {"r", "Yanıtla"}, {"d", del}, {"m", "Klasöre taşı"}, {"k", "Kaydet"}, {"e", "Ekler"}, {"o", "Tarayıcıda aç"}, {"/", "Ara"}}
-	keybar(g, g.H-1, withComposeHint(items), "? Yardım", &m.hits)
+	items := []keyHint{{"→/Enter", i18n.T("Aç")}, {"t", i18n.T("Sekmede aç")}, {"n", i18n.T("Yeni")}, {"r", i18n.T("Yanıtla")}, {"d", del}, {"m", i18n.T("Klasöre taşı")}, {"k", i18n.T("Kaydet")}, {"e", i18n.T("Ekler")}, {"o", i18n.T("Tarayıcıda aç")}, {"/", i18n.T("Ara")}}
+	keybar(g, g.H-1, withComposeHint(items), i18n.T("? Yardım"), &m.hits)
 }
 
 func (m *Model) drawFolders(g *grid.Grid, x0, top, w, h int) {
 	focused := m.focus == focusFolders
-	panel(g, x0, top, w, h, focused, cPanel, "Klasörler")
+	panel(g, x0, top, w, h, focused, cPanel, i18n.T("Klasörler"))
 	rows := m.folderRows()
 	sel := m.folderRowsSelectable()
 	var cur frow
@@ -610,7 +611,7 @@ func (m *Model) drawFolders(g *grid.Grid, x0, top, w, h int) {
 			fg := cFG
 			if r.kind == rowSaved {
 				g.Put(x0+2, y, "★", grid.Style{FG: cAccent, BG: bg}, 0)
-				g.Put(x0+4, y, savedTitle, grid.Style{FG: fg, BG: bg, Bold: active || isCur}, w-10)
+				g.Put(x0+4, y, savedTitle(), grid.Style{FG: fg, BG: bg, Bold: active || isCur}, w-10)
 			} else {
 				g.Put(x0+2, y, r.label, grid.Style{FG: fg, BG: bg, Bold: active || isCur}, w-8)
 			}
@@ -663,7 +664,7 @@ func (m *Model) drawFolders(g *grid.Grid, x0, top, w, h int) {
 	by := top + h - 1 - bottomReserved
 	g.Put(x0+1, by, strings.Repeat("─", w-2), st(cBorder), 0)
 	n := len(m.opt.Blocks.All())
-	blk := "⊘ Engellenenler"
+	blk := i18n.T("⊘ Engellenenler")
 	special := func(yy int, kind rowKind, text, hint string) {
 		var bg string
 		if focused && cur.kind == kind {
@@ -683,7 +684,7 @@ func (m *Model) drawFolders(g *grid.Grid, x0, top, w, h int) {
 		blk += " " + cnt
 	}
 	special(by+1, rowBlocked, blk, "Ctrl+B")
-	special(by+2, rowAddAcct, "+ Hesap ekle", "+")
+	special(by+2, rowAddAcct, i18n.T("+ Hesap ekle"), "+")
 	nsel := len(m.folderRowsSelectable())
 	m.hits.add(hit{x: x0 + 1, y: by + 1, w: w - 2, h: 1, kind: hitFolderRow, idx: nsel - 2})
 	m.hits.add(hit{x: x0 + 1, y: by + 2, w: w - 2, h: 1, kind: hitFolderRow, idx: nsel - 1})
@@ -694,22 +695,22 @@ func (m *Model) listTitle() string {
 	switch m.virt {
 	case viewUnified:
 		if m.readView {
-			return readTitle + " · tüm hesaplar"
+			return readTitle() + i18n.T(" · tüm hesaplar")
 		}
-		return unifiedTitle
+		return unifiedTitle()
 	case viewSaved:
-		return savedTitle + " · tüm hesaplar"
+		return savedTitle() + i18n.T(" · tüm hesaplar")
 	}
 	a := m.acct()
 	if a == nil {
 		return ""
 	}
-	fl := "Gelen Kutusu"
+	fl := i18n.T("Gelen Kutusu")
 	if f := a.folder(m.folder); f != nil {
 		fl = strings.TrimSpace(f.Label())
 	}
 	if m.readView {
-		fl = readTitle
+		fl = readTitle()
 	}
 	return a.Cfg.Name + " · " + fl
 }
@@ -729,10 +730,11 @@ func (m *Model) drawList(g *grid.Grid, x0, top, w, h int) {
 	// search row
 	sbg := cRaised
 	g.Fill(mx, top+1, mw, 1, sbg)
-	g.Put(mx+1, top+1, "Ara: ", stbg(cFaint, sbg), 0)
-	g.Put(mx+6, top+1, "gönderen, konu veya içerik…", stbg(cFaint, sbg), mw-8)
+	lab := i18n.T("Ara: ")
+	lx := g.Put(mx+1, top+1, lab, stbg(cFaint, sbg), 0)
+	g.Put(lx, top+1, i18n.T("gönderen, konu veya içerik…"), stbg(cFaint, sbg), mx+mw-lx-2)
 	g.RPut(mx+mw-1, top+1, "/", stbg(cDim, sbg))
-	m.hits.add(hit{x: mx, y: top + 1, w: mw, h: 1, kind: hitSearch, ox: mx + 6, oy: top + 1})
+	m.hits.add(hit{x: mx, y: top + 1, w: mw, h: 1, kind: hitSearch, ox: lx, oy: top + 1})
 	v := m.visible()
 	base := v
 	if m.groupsOn() {
@@ -744,27 +746,27 @@ func (m *Model) drawList(g *grid.Grid, x0, top, w, h int) {
 			unread++
 		}
 	}
-	info := fmt.Sprintf("%d ileti · %d okunmamış", len(base), unread)
+	info := i18n.Tf("%d ileti · %d okunmamış", len(base), unread)
 	if a != nil {
 		if f := a.folder(m.folder); f != nil && m.virt == viewFolder && f.Total > len(base) && !m.inboxView() {
-			info = fmt.Sprintf("%d ileti · %d okunmamış", f.Total, f.Unread)
+			info = i18n.Tf("%d ileti · %d okunmamış", f.Total, f.Unread)
 		}
 	}
 	// Gelen Kutusu lists every mail; unread vs read is typography, not a split.
 	if have, total, loading := m.listProgress(); loading && !m.searching() {
-		info = fmt.Sprintf("Yükleniyor %d/%d", have, total)
+		info = i18n.Tf("Yükleniyor %d/%d", have, total)
 	}
 	if p := m.pendingF; p != nil {
-		info = p.label + " yükleniyor…" // the old list stays until it arrives
+		info = p.label + i18n.T(" yükleniyor…") // the old list stays until it arrives
 	}
 	g.Put(mx, top+2, info, st(cFaint), mw)
 	g.HLine(x0+1, top+3, w-2, cBorder, "", "")
 	y0 := top + 4
 	rowsH := top + h - 1 - y0
 	if a != nil && m.virt == viewFolder && !a.Loaded[m.folder] && len(v) == 0 {
-		msg := "Yükleniyor…"
+		msg := i18n.T("Yükleniyor…")
 		if a.State == stNeedsLogin {
-			msg = "Bu hesap için yeniden giriş gerekiyor (+ tuşu)."
+			msg = i18n.T("Bu hesap için yeniden giriş gerekiyor (+ tuşu).")
 		} else if a.Err != "" {
 			msg = a.Err
 		}
@@ -775,7 +777,7 @@ func (m *Model) drawList(g *grid.Grid, x0, top, w, h int) {
 		m.cursor, m.offset = 0, 0
 		msg := "Burada ileti yok."
 		if m.virt == viewSaved {
-			msg = "Kaydedilen ileti yok. Bir iletide k tuşuna basarak sonraya sakla."
+			msg = i18n.T("Kaydedilen ileti yok. Bir iletide k tuşuna basarak sonraya sakla.")
 		}
 		g.Put(mx, y0+1, msg, st(cFaint), mw)
 		return
@@ -892,13 +894,13 @@ func drawHeaders(g *grid.Grid, x, y, w int, e backend.Envelope, p *mailmsg.Parse
 		}
 		to = mailmsg.FormatAddresses(p.To)
 	}
-	kv("Kimden", from, false)
-	kv("Kime", to, false)
+	kv(i18n.T("Kimden"), from, false)
+	kv(i18n.T("Kime"), to, false)
 	if showCc && p != nil && len(p.Cc) > 0 {
-		kv("Bilgi", mailmsg.FormatAddresses(p.Cc), false)
+		kv(i18n.T("Bilgi"), mailmsg.FormatAddresses(p.Cc), false)
 	}
-	kv("Tarih", mailmsg.LongDate(e.Date), false)
-	kv("Konu", trimSubj(e.Subject), true)
+	kv(i18n.T("Tarih"), mailmsg.LongDate(e.Date), false)
+	kv(i18n.T("Konu"), trimSubj(e.Subject), true)
 	if p != nil && len(p.Attachments) > 0 {
 		// one line; the list itself is on the "Ekler ve Bağlantılar" tab
 		g.Put(x, y, fmt.Sprintf("%-7s", "Ek"), st(cFaint), 0)
@@ -922,11 +924,11 @@ func drawHeaders(g *grid.Grid, x, y, w int, e backend.Envelope, p *mailmsg.Parse
 func (m *Model) drawPreview(g *grid.Grid, x0, top, w, h int) {
 	focused := m.focus == focusReader
 	e, ok := m.selected()
-	bc, title := cBorder, "Okuma"
+	bc, title := cBorder, i18n.T("Okuma")
 	if focused {
 		bc = cActive
 		if !ok {
-			title = "Okuma · iletinin içindesin"
+			title = i18n.T("Okuma · iletinin içindesin")
 		}
 	}
 	panel(g, x0, top, w, h, focused, cBG, title)
@@ -956,7 +958,7 @@ func (m *Model) drawPreview(g *grid.Grid, x0, top, w, h int) {
 	if r.attMode {
 		bottom := top + h - 2
 		m.drawAttTab(g, rx, top+4, rw, bottom-1, r, p, focused)
-		g.Put(rx, top+h-2, "Enter: aç · s: İndirilenler'e kaydet · e: Mail", st(cFaint), rw-6)
+		g.Put(rx, top+h-2, i18n.T("Enter: aç · s: İndirilenler'e kaydet · e: Mail"), st(cFaint), rw-6)
 		return
 	}
 	y := drawHeaders(g, rx, top+4, rw, e, p, attSel, false, hl, false, func(i, ay int) {
@@ -969,9 +971,9 @@ func (m *Model) drawPreview(g *grid.Grid, x0, top, w, h int) {
 	y += 2
 	bottom := top + h - 2
 	r.lastH = max(1, bottom-1-y)
-	hint, hintFG := "Enter: iletiye gir · o: tarayıcıda aç", cFaint
+	hint, hintFG := i18n.T("Enter: iletiye gir · o: tarayıcıda aç"), cFaint
 	if focused {
-		hint, hintFG = "Enter: yanıtla  ·  ]: sonraki  ·  [: önceki", cDim
+		hint, hintFG = i18n.T("Enter: yanıtla  ·  ]: sonraki  ·  [: önceki"), cDim
 	}
 	if p != nil && (len(p.Links) > 0 || len(p.Attachments) > 0) {
 		if focused {
@@ -988,7 +990,7 @@ func (m *Model) drawPreview(g *grid.Grid, x0, top, w, h int) {
 			text, links = string(p.Attachments[r.att].Data), nil
 		}
 		if strings.TrimSpace(text) == "" {
-			text = "(Bu iletide metin yok.)"
+			text = i18n.T("(Bu iletide metin yok.)")
 		}
 		lines, paras := m.wrapped(k, text, rw)
 		if r.scroll > max(0, len(lines)-r.lastH) {
@@ -1018,7 +1020,7 @@ func (m *Model) drawPreview(g *grid.Grid, x0, top, w, h int) {
 	case m.bodyErr[k] != "":
 		g.Put(rx, y, m.bodyErr[k], st(cRed), rw)
 	default:
-		g.Put(rx, y, "Yükleniyor…", st(cFaint), rw)
+		g.Put(rx, y, i18n.T("Yükleniyor…"), st(cFaint), rw)
 	}
 	if m.bodyFind != nil {
 		m.drawBodyFind(g, rx, top+h-2, rw)
@@ -1073,15 +1075,15 @@ func (m *Model) drawToasts(g *grid.Grid) {
 				m.hits.add(hit{x: tx + 1, y: yy, w: tw - 2, h: 1, kind: hitMailToastItem, idx: i})
 			}
 			if len(mails) > shown {
-				g.Put(tx+2, ty+2+shown, fmt.Sprintf("… ve %d ileti daha", len(mails)-shown), st(cFaint), 0)
+				g.Put(tx+2, ty+2+shown, i18n.Tf("… ve %d ileti daha", len(mails)-shown), st(cFaint), 0)
 			}
 		}
-		hint := "tıkla: aç"
+		hint := i18n.T("tıkla: aç")
 		if len(mails) > 1 {
-			hint = "tıkla / 1-" + strconv.Itoa(min(9, len(mails))) + ": aç"
+			hint = i18n.T("tıkla / 1-") + strconv.Itoa(min(9, len(mails))) + i18n.T(": aç")
 		}
 		g.Put(tx+2, ty+th-2, hint, st(cFaint), 0)
-		g.RPut(tx+tw-2, ty+th-2, "x: kapat", st(cFaint))
+		g.RPut(tx+tw-2, ty+th-2, i18n.T("x: kapat"), st(cFaint))
 		m.hits.add(hit{x: tx + tw - 10, y: ty + th - 2, w: 9, h: 1, kind: hitMailToastClose})
 		y = ty - 1
 	}

@@ -2,8 +2,11 @@ package search
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 	"time"
+
+	"termail/internal/i18n"
 )
 
 func TestFoldTurkish(t *testing.T) {
@@ -154,5 +157,50 @@ func TestGrouping(t *testing.T) {
 	}
 	if got := GroupLabel("d:istanbul.gov.tr", []string{"A", "B"}); got != "İstanbul" {
 		t.Fatalf("label %q", got)
+	}
+}
+
+func TestEnglishAliases(t *testing.T) {
+	now := time.Date(2026, 11, 20, 12, 0, 0, 0, time.UTC)
+	it := Item{FromHay: Fold("Ayşe Demir ayse.demir@firma.com"), ToHay: Fold("Mehmet mehmet@ornek.com"),
+		Hay: Fold("Ayşe Demir ayse.demir@firma.com Proje toplantısı"), Date: now, Attach: true}
+	for _, q := range []string{"from:ayşe", "from:ayse", "has:attachment", "attachment", "today", "unread"} {
+		if q == "unread" {
+			continue
+		}
+		if !Parse(q).Match(it, now) {
+			t.Fatalf("%q should match", q)
+		}
+	}
+	if !Parse("to:mehmet").Match(it, now) || !Parse("kime:mehmet").Match(it, now) {
+		t.Fatal("to:/kime: should match")
+	}
+	if Parse("to:unknown").Match(it, now) {
+		t.Fatal("to:unknown should not match")
+	}
+	if !Parse("unread").Match(it, now) {
+		t.Fatal("unread should match a not-yet-seen message")
+	}
+	it.Seen = true
+	if Parse("unread").Match(it, now) || Parse("okunmamış").Match(it, now) {
+		t.Fatal("seen mail matched unread")
+	}
+	if !Parse("this week").Match(it, now) || !Parse("bu hafta").Match(it, now) {
+		t.Fatal("this week")
+	}
+	if Parse("yesterday").Match(it, now) {
+		t.Fatal("yesterday")
+	}
+}
+
+func TestChipsEnglish(t *testing.T) {
+	i18n.Set(i18n.EN)
+	t.Cleanup(func() { i18n.Set(i18n.TR) })
+	c := Parse("from:ayşe has:attachment unread today").Chips()
+	joined := strings.Join(c, " | ")
+	for _, want := range []string{"From:", "Has attachment", "Unread", "Today"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("chips %q missing %q", joined, want)
+		}
 	}
 }

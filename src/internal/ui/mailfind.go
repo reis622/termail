@@ -9,6 +9,7 @@ import (
 
 	"termail/internal/edit"
 	"termail/internal/grid"
+	"termail/internal/i18n"
 )
 
 // In-mail search (Ctrl+F or / in the reader pane or a reader tab).
@@ -29,7 +30,7 @@ func (m *Model) openBodyFind() tea.Cmd {
 	}
 	if m.bodyFind == nil {
 		in := edit.New(edit.Single)
-		in.Placeholder = "İletide ara"
+		in.Placeholder = i18n.T("İletide ara")
 		m.bodyFind = &bodyFind{in: in, cur: -1}
 	}
 	m.bodyFind.in.Focus()
@@ -184,7 +185,7 @@ func (m *Model) drawBodyFind(g *grid.Grid, x, y, w int) {
 		return
 	}
 	g.Fill(x, y, w, 1, cRaised)
-	lab := "Ara: "
+	lab := i18n.T("Ara: ")
 	x0 := g.Put(x+1, y, lab, stbg(cAccent, cRaised), 0)
 	nm := ""
 	if q := strings.TrimSpace(f.in.Value()); q != "" {
@@ -201,7 +202,6 @@ func (m *Model) drawBodyFind(g *grid.Grid, x, y, w int) {
 		g.RPut(x+w-1, y, nm, stbg(cAccent, cRaised))
 	}
 }
-
 
 func byteIndexFold(s string, foldedByte int) int {
 	if foldedByte <= 0 {

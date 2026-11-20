@@ -5,8 +5,10 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"termail/internal/account"
 	"termail/internal/backend"
 	"termail/internal/blocklist"
+	"termail/internal/i18n"
 	"termail/internal/toast"
 )
 
@@ -76,6 +78,10 @@ func (m *Model) onKey(k tea.KeyMsg) tea.Cmd {
 		return m.useKey(m.acctPicker.key(m, key))
 	}
 	if m.help {
+		if key == "l" || key == "L" || key == "shift+l" {
+			m.toggleLang()
+			return m.useKey(nil)
+		}
 		if key == "?" || key == "esc" || key == "q" {
 			m.help = false
 			return m.useKey(nil)
@@ -748,8 +754,8 @@ func (m *Model) jumpToMail(t toast.Mail) tea.Cmd {
 
 func (m *Model) confirmRemoveAccount(ai int) {
 	a := m.accts[ai]
-	m.confirm = &confirmBox{title: "Hesabı kaldır", text: a.Cfg.Name + " (" + a.Cfg.Email + ") bu bilgisayardan kaldırılsın mı? Postaların sunucuda kalır.",
-		yes: "Kaldır", onYes: func() tea.Cmd {
+	m.confirm = &confirmBox{title: i18n.T("Hesabı kaldır"), text: a.Cfg.Name + " (" + a.Cfg.Email + i18n.T(") bu bilgisayardan kaldırılsın mı? Postaların sunucuda kalır."),
+		yes: i18n.T("Kaldır"), onYes: func() tea.Cmd {
 			if a.cancel != nil {
 				a.cancel()
 			}
@@ -794,4 +800,19 @@ func (m *Model) refresh() tea.Cmd {
 		return tea.Batch(cmds...)
 	}
 	return tea.Batch(m.kickOrReloadList(m.cur, m.folder), m.loadFolders(m.cur))
+}
+
+// toggleLang switches the UI language and writes it to config.json.
+func (m *Model) toggleLang() {
+	next := i18n.EN
+	if i18n.Get() == i18n.EN {
+		next = i18n.TR
+	}
+	i18n.Set(next)
+	if m.opt.Config != nil {
+		m.opt.Config.Language = string(next)
+	}
+	if err := account.SaveLanguage(string(next)); err != nil && m.opt.Logger != nil {
+		m.opt.Logger.Println("language:", err)
+	}
 }

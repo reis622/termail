@@ -10,6 +10,7 @@ import (
 	"termail/internal/blocklist"
 	"termail/internal/downloads"
 	"termail/internal/grid"
+	"termail/internal/i18n"
 	"termail/internal/mailmsg"
 	"termail/internal/toast"
 )
@@ -167,7 +168,7 @@ func (r *reader) handleKey(m *Model, key string) (tea.Cmd, bool) {
 func (r *reader) saveAttachment(m *Model) tea.Cmd {
 	p := m.body(r.key)
 	if p == nil {
-		m.toastInfo(toast.Info, "", "İleti henüz yükleniyor.")
+		m.toastInfo(toast.Info, "", i18n.T("İleti henüz yükleniyor."))
 		return nil
 	}
 	if len(p.Attachments) == 0 {
@@ -188,7 +189,7 @@ func (r *reader) saveAttachment(m *Model) tea.Cmd {
 func (r *reader) draw(m *Model, g *grid.Grid) {
 	top := 2
 	h := g.H - 3
-	g.Box(0, top, g.W, h, cBorderF, cBG, "İleti · "+trimSubj(r.env.Subject), cAccent)
+	g.Box(0, top, g.W, h, cBorderF, cBG, i18n.T("İleti · ")+trimSubj(r.env.Subject), cAccent)
 	m.hits.add(hit{x: 0, y: top, w: g.W, h: h, kind: hitReaderPane})
 	x, w := 3, g.W-6
 	p := m.body(r.key)
@@ -204,7 +205,7 @@ func (r *reader) draw(m *Model, g *grid.Grid) {
 	g.HLine(0, top+2, g.W, cBorder, "├", "┤")
 	if r.attMode {
 		m.drawAttTab(g, x+1, top+4, min(w-1, 100), top+h-2, r, p, true)
-		keybar(g, g.H-1, readerKeys(p, false, true), "? Yardım", &m.hits)
+		keybar(g, g.H-1, readerKeys(p, false, true), i18n.T("? Yardım"), &m.hits)
 		return
 	}
 	y := drawHeaders(g, x, top+4, w, r.env, p, attSel, true, hl, false, func(i, ay int) {
@@ -226,7 +227,7 @@ func (r *reader) draw(m *Model, g *grid.Grid) {
 			text, links = string(p.Attachments[r.att].Data), nil
 		}
 		if strings.TrimSpace(text) == "" {
-			text = "(Bu iletide metin yok.)"
+			text = i18n.T("(Bu iletide metin yok.)")
 		}
 		lines, paras := m.wrapped(r.key, text, bodyW)
 		if r.scroll > max(0, len(lines)-r.lastH) {
@@ -247,7 +248,7 @@ func (r *reader) draw(m *Model, g *grid.Grid) {
 		m.paintSel(g)
 		m.paintBodyFind(g)
 		if p.FromHTML {
-			g.Put(x, top+h-2, "Bu ileti sade metin olarak gösteriliyor; görseller yüklenmedi.", st(cFaint), w)
+			g.Put(x, top+h-2, i18n.T("Bu ileti sade metin olarak gösteriliyor; görseller yüklenmedi."), st(cFaint), w)
 		}
 		if len(lines) > r.lastH {
 			pct := 100
@@ -259,12 +260,12 @@ func (r *reader) draw(m *Model, g *grid.Grid) {
 	case m.bodyErr[r.key] != "":
 		g.Put(x+1, y, m.bodyErr[r.key], st(cRed), w)
 	default:
-		g.Put(x+1, y, "Yükleniyor…", st(cFaint), w)
+		g.Put(x+1, y, i18n.T("Yükleniyor…"), st(cFaint), w)
 	}
 	if m.bodyFind != nil {
 		m.drawBodyFind(g, x, top+h-2, w)
 	}
-	keybar(g, g.H-1, m.withSelKeys(withComposeHint(readerKeys(p, false, r.attMode))), "? Yardım", &m.hits)
+	keybar(g, g.H-1, m.withSelKeys(withComposeHint(readerKeys(p, false, r.attMode))), i18n.T("? Yardım"), &m.hits)
 }
 
 var _ = mailmsg.Display
@@ -276,11 +277,11 @@ func readerKeys(p *mailmsg.Parsed, inline bool, attMode bool) []keyHint {
 	_ = p
 	_ = inline
 	if attMode {
-		return []keyHint{{"Enter", "Aç"}, {"s", "Kaydet"}, {"Esc", "Mail"}}
+		return []keyHint{{"Enter", i18n.T("Aç")}, {"s", i18n.T("Kaydet")}, {"Esc", i18n.T("Mail")}}
 	}
 	return []keyHint{
-		{"r", "Yanıtla"}, {"a", "Tümüne"}, {"f", "İlet"},
-		{"e", "Ekler"}, {"m", "Klasöre taşı"}, {"]", "Sonraki"}, {"[", "Önceki"}, {"Esc", "Geri"},
+		{"r", i18n.T("Yanıtla")}, {"a", i18n.T("Tümüne")}, {"f", i18n.T("İlet")},
+		{"e", i18n.T("Ekler")}, {"m", i18n.T("Klasöre taşı")}, {"]", "Sonraki"}, {"[", i18n.T("Önceki")}, {"Esc", i18n.T("Geri")},
 	}
 }
 
@@ -362,7 +363,7 @@ func (m *Model) stepReader(r *reader, delta int) tea.Cmd {
 		r.hist = r.hist[:len(r.hist)-1]
 		e, ok := m.envelopeOf(k)
 		if !ok {
-			m.toastInfo(toast.Info, "", "Başka ileti yok.")
+			m.toastInfo(toast.Info, "", i18n.T("Başka ileti yok."))
 			return nil
 		}
 		return m.openStepped(r, e, false)
@@ -376,7 +377,7 @@ func (m *Model) stepReader(r *reader, delta int) tea.Cmd {
 		}
 	}
 	if j < 0 || j >= len(list) {
-		m.toastInfo(toast.Info, "", "Başka ileti yok.")
+		m.toastInfo(toast.Info, "", i18n.T("Başka ileti yok."))
 		return nil
 	}
 	e := list[j]

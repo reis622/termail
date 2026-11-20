@@ -18,10 +18,10 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/sha256"
-	"io"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -126,6 +126,9 @@ type Header struct {
 	UID      uint32    `json:"i"`
 	From     string    `json:"f,omitempty"`
 	FromAddr string    `json:"a,omitempty"`
+	To       string    `json:"to,omitempty"`
+	ToAddr   string    `json:"ta,omitempty"`
+	ToPeople string    `json:"tp,omitempty"`
 	Subject  string    `json:"s,omitempty"`
 	Date     time.Time `json:"d"`
 	Seen     bool      `json:"r,omitempty"`

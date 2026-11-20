@@ -10,6 +10,7 @@ import (
 
 	"termail/internal/backend"
 	"termail/internal/edit"
+	"termail/internal/i18n"
 	"termail/internal/toast"
 )
 
@@ -33,12 +34,12 @@ func (m *Model) startNewFolder() tea.Cmd {
 		}
 	}
 	if ai < 0 || ai >= len(m.accts) {
-		m.toastInfo(toast.Info, "", "Yeni klasör için solda bir hesabın satırını seç.")
+		m.toastInfo(toast.Info, "", i18n.T("Yeni klasör için solda bir hesabın satırını seç."))
 		return nil
 	}
 	m.setOpen(ai, true)
 	in := edit.New(edit.Single)
-	in.Placeholder = "Klasör adı"
+	in.Placeholder = i18n.T("Klasör adı")
 	in.Focus()
 	m.newFolder = &newFolderBox{acct: ai, in: in}
 	m.focus = focusFolders
@@ -71,24 +72,24 @@ func (m *Model) commitNewFolder() tea.Cmd {
 	}
 	name := strings.TrimSpace(nf.in.Value())
 	if name == "" {
-		m.toastInfo(toast.Info, "", "Bir klasör adı yaz.")
+		m.toastInfo(toast.Info, "", i18n.T("Bir klasör adı yaz."))
 		return nil
 	}
 	for _, r := range name {
 		if r < 32 || unicode.IsControl(r) {
-			m.toastInfo(toast.Error, "", "Klasör adı geçersiz.")
+			m.toastInfo(toast.Error, "", i18n.T("Klasör adı geçersiz."))
 			return nil
 		}
 	}
 	ai := nf.acct
 	if ai < 0 || ai >= len(m.accts) || m.accts[ai].B == nil {
-		m.toastInfo(toast.Error, "", "Hesap bağlı değil, klasör oluşturulamadı.")
+		m.toastInfo(toast.Error, "", i18n.T("Hesap bağlı değil, klasör oluşturulamadı."))
 		return nil
 	}
 	a := m.accts[ai]
 	for _, f := range a.Folders {
 		if strings.EqualFold(f.Name, name) {
-			m.toastInfo(toast.Error, "", "Bu isimde bir klasör zaten var.")
+			m.toastInfo(toast.Error, "", i18n.T("Bu isimde bir klasör zaten var."))
 			return nil
 		}
 	}

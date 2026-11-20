@@ -5,6 +5,8 @@ package backend
 import (
 	"context"
 	"strings"
+
+	"termail/internal/i18n"
 	"time"
 )
 
@@ -30,21 +32,21 @@ var RoleOrder = []Role{RoleInbox, RoleFlagged, RoleSent, RoleDrafts, RoleArchive
 func (r Role) DisplayName() string {
 	switch r {
 	case RoleInbox:
-		return "Gelen Kutusu"
+		return i18n.T("Gelen Kutusu")
 	case RoleFlagged:
-		return "Yıldızlı"
+		return i18n.T("Yıldızlı")
 	case RoleSent:
-		return "Gönderilenler"
+		return i18n.T("Gönderilenler")
 	case RoleDrafts:
-		return "Taslaklar"
+		return i18n.T("Taslaklar")
 	case RoleArchive:
-		return "Arşiv"
+		return i18n.T("Arşiv")
 	case RoleJunk:
-		return "Spam"
+		return i18n.T("Spam")
 	case RoleTrash:
-		return "Çöp Kutusu"
+		return i18n.T("Çöp Kutusu")
 	case RoleAll:
-		return "Tüm postalar"
+		return i18n.T("Tüm postalar")
 	}
 	return ""
 }
@@ -77,6 +79,9 @@ type Envelope struct {
 	UID       uint32
 	From      string // display name
 	FromAddr  string
+	To        string // first To display name
+	ToAddr    string
+	ToPeople  string // names and addresses of To/Cc, for kime:/to: search
 	Subject   string
 	Date      time.Time
 	Seen      bool
@@ -117,8 +122,8 @@ type Event struct {
 	Kind     EventKind
 	Folder   string
 	Err      error
-	NewUIDs  []uint32  // EXISTS: new messages (when known)
-	Vanished []uint32  // expunged UIDs (when known)
+	NewUIDs  []uint32   // EXISTS: new messages (when known)
+	Vanished []uint32   // expunged UIDs (when known)
 	Flags    []Envelope // IDLE FETCH flag updates (UID + Seen/Flagged)
 }
 
@@ -242,8 +247,8 @@ func NonMailFolder(name string) bool {
 	switch n {
 	case "outbox", "giden kutusu", "out-box",
 		"notes", "notlar", "notlarım", "sticky notes",
-		"journal", "günlük", "diary",
-		"contacts", "kişiler", "people", "rehber", "suggested contacts",
+		"journal", i18n.T("günlük"), "diary",
+		"contacts", i18n.T("kişiler"), "people", "rehber", "suggested contacts",
 		"calendar", "takvim", "calendars",
 		"tasks", "görevler", "to-do", "todo", "to do",
 		"sync issues", "eşitleme sorunları", "conflicts", "çatışmalar",

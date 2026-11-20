@@ -5,6 +5,7 @@ import (
 	"termail/internal/grid"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"termail/internal/i18n"
 )
 
 // A small right-click menu. Click outside or Esc closes it.
@@ -95,13 +96,13 @@ func (m *Model) mailCtxItems(ai int, fo string, e backend.Envelope) []ctxItem {
 	if e.UID == 0 {
 		return nil
 	}
-	save := "Kaydet"
+	save := i18n.T("Kaydet")
 	if e.Flagged {
-		save = "Kaldır"
+		save = i18n.T("Kaldır")
 	}
-	read := "Okundu"
+	read := i18n.T("Okundu")
 	if e.Seen {
-		read = "Okunmadı"
+		read = i18n.T("Okunmadı")
 	}
 	run := func(key string) func(*Model) tea.Cmd {
 		return func(m *Model) tea.Cmd {
@@ -110,15 +111,15 @@ func (m *Model) mailCtxItems(ai int, fo string, e backend.Envelope) []ctxItem {
 		}
 	}
 	return []ctxItem{
-		{"Sekmede aç", "t", run("t")},
-		{"Tarayıcıda aç", "o", run("o")},
-		{"Yanıtla", "r", run("r")},
-		{"Tümüne yanıtla", "a", run("a")},
-		{"İlet", "f", run("f")},
-		{"Klasöre taşı", "m", run("m")},
+		{i18n.T("Sekmede aç"), "t", run("t")},
+		{i18n.T("Tarayıcıda aç"), "o", run("o")},
+		{i18n.T("Yanıtla"), "r", run("r")},
+		{i18n.T("Tümüne yanıtla"), "a", run("a")},
+		{i18n.T("İlet"), "f", run("f")},
+		{i18n.T("Klasöre taşı"), "m", run("m")},
 		{save, "k", run("k")},
 		{read, "i", run("i")},
-		{"Sil", "d", run("d")},
+		{i18n.T("Sil"), "d", run("d")},
 	}
 }
 
@@ -129,7 +130,7 @@ func (m *Model) showMailMenu(x, y int, ai int, fo string, e backend.Envelope) {
 func (m *Model) showFolderMenu(x, y int, r frow) {
 	if r.kind == rowAcct {
 		ai := r.acct
-		m.openCtxMenu(x, y, []ctxItem{{"Yeni klasör", "alt+n", func(m *Model) tea.Cmd {
+		m.openCtxMenu(x, y, []ctxItem{{i18n.T("Yeni klasör"), "alt+n", func(m *Model) tea.Cmd {
 			m.fcursor = m.folderRowIndex(r)
 			m.focus = focusFolders
 			return m.startNewFolderFor(ai)
@@ -140,12 +141,12 @@ func (m *Model) showFolderMenu(x, y int, r frow) {
 		return
 	}
 	m.openCtxMenu(x, y, []ctxItem{
-		{"Sil", "d", func(m *Model) tea.Cmd {
+		{i18n.T("Sil"), "d", func(m *Model) tea.Cmd {
 			m.fcursor = m.folderRowIndex(r)
 			m.focus = focusFolders
 			return m.askDeleteFolder(r)
 		}},
-		{"Yeniden adlandır", "r", func(m *Model) tea.Cmd {
+		{i18n.T("Yeniden adlandır"), "r", func(m *Model) tea.Cmd {
 			m.fcursor = m.folderRowIndex(r)
 			m.focus = focusFolders
 			return m.startRenameFolder(r)

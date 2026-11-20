@@ -15,6 +15,7 @@ import (
 
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
+	"termail/internal/i18n"
 )
 
 func targetDir() (string, error) {
@@ -53,7 +54,7 @@ func Install(out io.Writer) error {
 		broadcastEnvChange()
 	}
 	fmt.Fprintf(out, "Termail şuraya kopyalandı: %s\n", dst)
-	fmt.Fprintln(out, "Kuruldu. Yeni bir terminal açıp termail yaz.")
+	fmt.Fprintln(out, i18n.T("Kuruldu. Yeni bir terminal açıp termail yaz."))
 	return nil
 }
 
@@ -81,7 +82,7 @@ func Uninstall(out io.Writer) error {
 	} else if err := os.RemoveAll(dir); err != nil {
 		return fmt.Errorf("program klasörü silinemedi: %w", err)
 	}
-	fmt.Fprintln(out, "Termail kaldırıldı. Ayarların ve kayıtlı girişlerin yerinde duruyor.")
+	fmt.Fprintln(out, i18n.T("Termail kaldırıldı. Ayarların ve kayıtlı girişlerin yerinde duruyor."))
 	return nil
 }
 

@@ -3,7 +3,6 @@ package ui
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sort"
 	"strings"
 	"sync"
@@ -15,6 +14,7 @@ import (
 	"termail/internal/backend"
 	"termail/internal/edit"
 	"termail/internal/grid"
+	"termail/internal/i18n"
 	"termail/internal/mailmsg"
 	"termail/internal/search"
 )
@@ -30,7 +30,9 @@ const (
 	scopeAllAccounts
 )
 
-var scopeNames = [...]string{"Bu klasör", "Tüm klasörler", "Tüm hesaplar"}
+func scopeNames() []string {
+	return []string{i18n.T("Bu klasör"), i18n.T("Tüm klasörler"), i18n.T("Tüm hesaplar")}
+}
 
 // serverSearchDelay: the server is asked once typing pauses this long.
 const serverSearchDelay = 350 * time.Millisecond
@@ -170,9 +172,9 @@ func (s *searchBox) key(m *Model, k tea.KeyMsg) tea.Cmd {
 	case "tab", "shift+tab":
 		d := 1
 		if key == "shift+tab" {
-			d = len(scopeNames) - 1
+			d = len(scopeNames()) - 1
 		}
-		s.scope = (s.scope + d) % len(scopeNames)
+		s.scope = (s.scope + d) % len(scopeNames())
 		return m.searchChanged()
 	case "up", "down", "pgup", "pgdown":
 		if s.q.Empty() {
@@ -229,22 +231,23 @@ type foldKey struct {
 	uid    uint32
 }
 
-type foldVal struct{ src, hay, from string }
+type foldVal struct{ src, hay, from, to string }
 
 // searchItem is a mail in the form the matcher wants (cached).
 func (m *Model) searchItem(e backend.Envelope) search.Item {
 	k := foldKey{e.Acct, e.Folder, e.UID}
-	src := e.From + "\x00" + e.FromAddr + "\x00" + e.Subject
+	src := e.From + "\x00" + e.FromAddr + "\x00" + e.Subject + "\x00" + e.ToPeople + "\x00" + e.To + "\x00" + e.ToAddr
 	v, ok := m.foldCache[k]
 	if !ok || v.src != src {
 		if m.foldCache == nil || len(m.foldCache) > 20000 {
 			m.foldCache = make(map[foldKey]foldVal, 512)
 		}
 		from := search.Fold(e.From + " " + e.FromAddr)
-		v = foldVal{src: src, from: from, hay: from + " " + search.Fold(e.Subject)}
+		to := search.Fold(e.ToPeople + " " + e.To + " " + e.ToAddr)
+		v = foldVal{src: src, from: from, to: to, hay: from + " " + search.Fold(e.Subject)}
 		m.foldCache[k] = v
 	}
-	it := search.Item{FromHay: v.from, Hay: v.hay, Date: e.Date, Seen: e.Seen, Flagged: e.Flagged, Attach: e.Attach}
+	it := search.Item{FromHay: v.from, ToHay: v.to, Hay: v.hay, Date: e.Date, Seen: e.Seen, Flagged: e.Flagged, Attach: e.Attach}
 	if p, ok := m.bodies.Peek(bodyKey{e.Acct, e.Folder, e.UID}); ok && p != nil {
 		b, ok := m.bodyFold[p]
 		if !ok {
@@ -255,6 +258,36 @@ func (m *Model) searchItem(e backend.Envelope) search.Item {
 			m.bodyFold[p] = b
 		}
 		it.Body = b
+		if it.ToHay == "" && (len(p.To) > 0 || len(p.Cc) > 0) {
+			var bld strings.Builder
+			for _, a := range p.To {
+				if a == nil {
+					continue
+				}
+				if bld.Len() > 0 {
+					bld.WriteByte(' ')
+				}
+				if a.Name != "" {
+					bld.WriteString(a.Name)
+					bld.WriteByte(' ')
+				}
+				bld.WriteString(a.Address)
+			}
+			for _, a := range p.Cc {
+				if a == nil {
+					continue
+				}
+				if bld.Len() > 0 {
+					bld.WriteByte(' ')
+				}
+				if a.Name != "" {
+					bld.WriteString(a.Name)
+					bld.WriteByte(' ')
+				}
+				bld.WriteString(a.Address)
+			}
+			it.ToHay = search.Fold(bld.String())
+		}
 		if len(p.Attachments) > 0 {
 			it.Attach = true
 		}
@@ -513,7 +546,7 @@ func (m *Model) onSearchDone(msg searchDoneMsg) tea.Cmd {
 	s.busy, s.cancel = false, nil
 	if msg.err != nil && !errors.Is(msg.err, context.Canceled) {
 		m.logErr("search", msg.err)
-		s.srvErr = "sunucuda aranamadı"
+		s.srvErr = i18n.T("sunucuda aranamadı")
 	}
 	// keep the highlighted mail highlighted while results arrive
 	cur, ok := m.selected()
@@ -596,14 +629,14 @@ func chip(g *grid.Grid, x, y int, text string, on bool) int {
 func (m *Model) searchTitle() string {
 	switch m.search.scope {
 	case scopeAllAccounts:
-		return "Arama · tüm hesaplar"
+		return i18n.T("Arama · tüm hesaplar")
 	case scopeAllFolders:
 		if m.virt == viewFolder {
 			if a := m.acct(); a != nil {
-				return "Arama · " + a.Cfg.Name + " · tüm klasörler"
+				return "Arama · " + a.Cfg.Name + i18n.T(" · tüm klasörler")
 			}
 		}
-		return "Arama · tüm klasörler"
+		return i18n.T("Arama · tüm klasörler")
 	}
 	return "Arama · " + m.listTitle()
 }
@@ -617,20 +650,24 @@ func (m *Model) drawSearchList(g *grid.Grid, x0, top, w, h int, focused bool) {
 		bg = cSelFocus
 	}
 	g.Fill(x0+1, top+1, w-2, 1, bg)
-	g.Put(mx, top+1, "Ara", stbgb(cAccent, bg, true), 0)
-	lab := " " + scopeNames[s.scope] + " "
+	ax := g.Put(mx, top+1, i18n.T("Ara"), stbgb(cAccent, bg, true), 0)
+	lab := " " + scopeNames()[s.scope] + " "
 	lw := grid.Width(lab)
 	g.RPut(mx+mw, top+1, lab, stbgb(cBG, cAccent, true))
 	m.hits.add(hit{x: mx + mw - lw, y: top + 1, w: lw, h: 1, kind: hitScope})
-	fw := mw - 4 - lw - 1
+	inX := ax + 1
+	fw := mw - (inX - mx) - lw - 1
+	if fw < 4 {
+		fw = 4
+	}
 	if s.focused {
 		es := editStyle(bg)
 		es.FG = cFG
-		s.in.Draw(g, mx+4, top+1, fw, 1, es)
+		s.in.Draw(g, inX, top+1, fw, 1, es)
 	} else {
-		g.Put(mx+4, top+1, s.in.Value(), stbgb(cFG, bg, true), fw)
+		g.Put(inX, top+1, s.in.Value(), stbgb(cFG, bg, true), fw)
 	}
-	m.hits.add(hit{x: mx, y: top + 1, w: mw - lw, h: 1, kind: hitSearch, ox: mx + 4, oy: top + 1})
+	m.hits.add(hit{x: mx, y: top + 1, w: mw - lw, h: 1, kind: hitSearch, ox: inX, oy: top + 1})
 	y := top + 2
 	if s.q.Empty() {
 		m.drawSearchHints(g, mx, top+3, mw, top+h-1)
@@ -647,10 +684,10 @@ func (m *Model) drawSearchList(g *grid.Grid, x0, top, w, h int, focused bool) {
 		y++
 	}
 	v := m.visible()
-	cx := g.Put(mx, y, fmt.Sprintf("%d sonuç", len(v)), st(cDim), 0)
+	cx := g.Put(mx, y, i18n.Tf("%d sonuç", len(v)), st(cDim), 0)
 	switch {
 	case s.busy:
-		g.Put(cx+2, y, "·  sunucuda aranıyor…", st(cFaint), mx+mw-cx-2)
+		g.Put(cx+2, y, i18n.T("·  sunucuda aranıyor…"), st(cFaint), mx+mw-cx-2)
 	case s.srvErr != "":
 		g.Put(cx+2, y, "·  "+s.srvErr, st(cYellow), mx+mw-cx-2)
 	}
@@ -660,9 +697,9 @@ func (m *Model) drawSearchList(g *grid.Grid, x0, top, w, h int, focused bool) {
 	rowsH := top + h - 1 - y0
 	if len(v) == 0 {
 		m.cursor, m.offset = 0, 0
-		msg := "Sonuç yok."
+		msg := i18n.T("Sonuç yok.")
 		if s.busy {
-			msg = "Bu bilgisayarda yok; sunucuda aranıyor…"
+			msg = i18n.T("Bu bilgisayarda yok; sunucuda aranıyor…")
 		}
 		g.Put(mx, y0+1, msg, st(cFaint), mw)
 		return
@@ -758,12 +795,12 @@ func (m *Model) searchMatchLoc(e backend.Envelope, needles []string) string {
 	}
 	for _, n := range needles {
 		if n != "" && containsFold(e.Subject, n) {
-			return "Konu: " + e.Subject
+			return i18n.T("Konu: ") + e.Subject
 		}
 	}
 	for _, n := range needles {
 		if n != "" && (containsFold(e.From, n) || containsFold(e.FromAddr, n)) {
-			return "Gönderen: " + e.From + " <" + e.FromAddr + ">"
+			return i18n.T("Gönderen: ") + e.From + " <" + e.FromAddr + ">"
 		}
 	}
 	return ""
@@ -797,7 +834,7 @@ func (m *Model) drawSearchHints(g *grid.Grid, mx, y, mw, bottom int) {
 	g.Put(mx, y, "Filtreler", st(cFaint), 0)
 	y++
 	x := mx
-	for i, f := range search.FilterHints {
+	for i, f := range search.FilterHints() {
 		cw := grid.Width(f) + 2
 		if x+cw > mx+mw || i == 4 { // two rows like the preview
 			x, y = mx, y+1
@@ -806,7 +843,7 @@ func (m *Model) drawSearchHints(g *grid.Grid, mx, y, mw, bottom int) {
 		x = chip(g, x, y, f, false) + 1
 	}
 	y += 2
-	g.Put(mx, y, "Yazmaya başlayın; sonuçlar anında görünür.", st(cFaint), mw)
+	g.Put(mx, y, i18n.T("Yazmaya başlayın; sonuçlar anında görünür."), st(cFaint), mw)
 	y++
-	g.Put(mx, y+1, "Tab: bu klasör · tüm klasörler · tüm hesaplar", st(cFaint), mw)
+	g.Put(mx, y+1, i18n.T("Tab: bu klasör · tüm klasörler · tüm hesaplar"), st(cFaint), mw)
 }

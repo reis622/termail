@@ -10,6 +10,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"termail/internal/backend"
+	"termail/internal/i18n"
 	"termail/internal/localstore"
 	"termail/internal/mailmsg"
 	"termail/internal/opqueue"
@@ -177,7 +178,7 @@ func (m *Model) onLocal(lm localMsg) tea.Cmd {
 		}
 		envs := make([]backend.Envelope, 0, len(in.List))
 		for _, h := range in.List {
-			envs = append(envs, backend.Envelope{UID: h.UID, From: h.From, FromAddr: h.FromAddr, Subject: h.Subject, Date: h.Date, Seen: h.Seen, Flagged: h.Flagged, Attach: h.Attach, ReadAt: h.ReadAt})
+			envs = append(envs, backend.Envelope{UID: h.UID, From: h.From, FromAddr: h.FromAddr, To: h.To, ToAddr: h.ToAddr, ToPeople: h.ToPeople, Subject: h.Subject, Date: h.Date, Seen: h.Seen, Flagged: h.Flagged, Attach: h.Attach, ReadAt: h.ReadAt})
 		}
 		a.Lists[folder] = m.overlayPending(i, folder, dedupeEnvs(envs))
 		a.Loaded[folder] = true
@@ -206,7 +207,7 @@ func (m *Model) onLocal(lm localMsg) tea.Cmd {
 	}
 	if n := len(lm.drafts); n > 0 {
 		m.active = 0
-		m.toasts.Push(toast.Info, "", fmt.Sprintf("Kapanırken yarım kalan %d ileti sekmede açıldı.", n), m.opt.Now(), 8*time.Second)
+		m.toasts.Push(toast.Info, "", i18n.Tf("Kapanırken yarım kalan %d ileti sekmede açıldı.", n), m.opt.Now(), 8*time.Second)
 	}
 	m.clampCursor()
 	return tea.Batch(m.previewCmd(), m.scheduleOps())
@@ -234,7 +235,7 @@ func (m *Model) saveInboxCache(i int) {
 		if e.UID >= 0xFF000000 { // a local placeholder, not a server UID
 			continue
 		}
-		in.List = append(in.List, localstore.Header{UID: e.UID, From: e.From, FromAddr: e.FromAddr, Subject: e.Subject, Date: e.Date, Seen: e.Seen, Flagged: e.Flagged, Attach: e.Attach, ReadAt: e.ReadAt})
+		in.List = append(in.List, localstore.Header{UID: e.UID, From: e.From, FromAddr: e.FromAddr, To: e.To, ToAddr: e.ToAddr, ToPeople: e.ToPeople, Subject: e.Subject, Date: e.Date, Seen: e.Seen, Flagged: e.Flagged, Attach: e.Attach, ReadAt: e.ReadAt})
 	}
 	for _, f := range a.Folders {
 		in.Folders = append(in.Folders, localstore.Folder{Name: f.Name, Role: string(f.Role), Delim: f.Delim, Total: f.Total, Unread: f.Unread})
@@ -374,12 +375,12 @@ func (m *Model) reopenDraft(d localstore.Draft) {
 		c.atts = append(c.atts, mailmsg.Attachment{Name: a.Name, ContentType: a.ContentType, Data: a.Data, Size: len(a.Data)})
 	}
 	if d.Subject != "" {
-		c.tab.title = "Yarım: " + trimSubj(d.Subject)
+		c.tab.title = i18n.T("Yarım: ") + trimSubj(d.Subject)
 	}
 	if d.Sending {
-		c.status, c.statusFG = "Bu ileti kapanırken gönderiliyordu; gitmiş olabilir. Gönderilenler'e bakıp gerekirse yeniden gönder.", cYellow
+		c.status, c.statusFG = i18n.T("Bu ileti kapanırken gönderiliyordu; gitmiş olabilir. Gönderilenler'e bakıp gerekirse yeniden gönder."), cYellow
 	} else {
-		c.status, c.statusFG = "Kapanırken yarım kalmıştı; kaldığın yerden devam edebilirsin.", cDim
+		c.status, c.statusFG = i18n.T("Kapanırken yarım kalmıştı; kaldığın yerden devam edebilirsin."), cDim
 	}
 }
 
@@ -429,7 +430,7 @@ func (m *Model) quit() tea.Cmd {
 		return m.exitNow()
 	}
 	m.quitWait = true
-	m.toasts.Push(toast.Info, "", fmt.Sprintf("Gönderiliyor… bitince kapanacak (en çok %d sn). Hemen çıkmak için yine q.", int(quitSendCap.Seconds())), m.opt.Now(), quitSendCap)
+	m.toasts.Push(toast.Info, "", i18n.Tf("Gönderiliyor… bitince kapanacak (en çok %d sn). Hemen çıkmak için yine q.", int(quitSendCap.Seconds())), m.opt.Now(), quitSendCap)
 	return tea.Tick(quitSendCap, func(time.Time) tea.Msg { return quitCapMsg{} })
 }
 

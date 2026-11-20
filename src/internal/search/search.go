@@ -15,6 +15,8 @@ import (
 	"unicode/utf8"
 
 	"golang.org/x/text/unicode/norm"
+
+	"termail/internal/i18n"
 )
 
 // DateKind is a date filter.
@@ -32,60 +34,65 @@ const (
 type Query struct {
 	Raw    string
 	Words  []string // as typed (for the server and for highlighting)
-	From   []string // kimden: values
-	Attach bool     // ekli
-	Unread bool     // okunmamış
-	Saved  bool     // kaydedilen
+	From   []string // kimden:/from: values
+	To     []string // kime:/to: values
+	Attach bool     // ekli / has:attachment
+	Unread bool     // okunmamış / unread
+	Saved  bool     // kaydedilen / saved
 	Date   DateKind
 
-	words, from []string // folded
+	words, from, to []string // folded
 }
 
 // Empty reports whether there is nothing to search for.
 func (q Query) Empty() bool {
-	return len(q.Words) == 0 && len(q.From) == 0 && !q.Attach && !q.Unread && !q.Saved && q.Date == DateAny
+	return len(q.Words) == 0 && len(q.From) == 0 && len(q.To) == 0 && !q.Attach && !q.Unread && !q.Saved && q.Date == DateAny
 }
 
 // HasFilters reports whether any filter (not a plain word) is set.
 func (q Query) HasFilters() bool {
-	return len(q.From) > 0 || q.Attach || q.Unread || q.Saved || q.Date != DateAny
+	return len(q.From) > 0 || len(q.To) > 0 || q.Attach || q.Unread || q.Saved || q.Date != DateAny
 }
 
 // Needles are the strings to highlight.
 func (q Query) Needles() []string {
-	return append(append([]string(nil), q.Words...), q.From...)
+	return append(append(append([]string(nil), q.Words...), q.From...), q.To...)
 }
 
 // Chips are the filters as short labels ("Kimden: Ayşe", "Ekli", ...).
 func (q Query) Chips() []string {
 	var out []string
 	for _, f := range q.From {
-		out = append(out, "Kimden: "+upperFirst(f))
+		out = append(out, i18n.T("Kimden: ")+upperFirst(f))
+	}
+	for _, f := range q.To {
+		out = append(out, i18n.T("Kime: ")+upperFirst(f))
 	}
 	if q.Attach {
-		out = append(out, "Ekli")
+		out = append(out, i18n.T("Ekli"))
 	}
 	if q.Unread {
-		out = append(out, "Okunmamış")
+		out = append(out, i18n.T("Okunmamış"))
 	}
 	if q.Saved {
-		out = append(out, "Kaydedilen")
+		out = append(out, i18n.T("Kaydedilen"))
 	}
 	switch q.Date {
 	case DateToday:
-		out = append(out, "Bugün")
+		out = append(out, i18n.T("Bugün"))
 	case DateYesterday:
-		out = append(out, "Dün")
+		out = append(out, i18n.T("Dün"))
 	case DateThisWeek:
-		out = append(out, "Bu hafta")
+		out = append(out, i18n.T("Bu hafta"))
 	case DateThisMonth:
-		out = append(out, "Bu ay")
+		out = append(out, i18n.T("Bu ay"))
 	}
 	return out
 }
 
-// FilterHints are the filter words offered under an empty search bar.
-var FilterHints = []string{"kimden:", "ekli", "okunmamış", "kaydedilen", "bugün", "bu hafta"}
+// FilterHints are the filter words offered under an empty search bar,
+// in the current UI language. Both Turkish and English forms are always accepted by Parse.
+func FilterHints() []string { return i18n.FilterHints() }
 
 // tokens splits on spaces, keeping "quoted phrases" together.
 func tokens(s string) []string {
@@ -133,27 +140,38 @@ func Parse(s string) Query {
 				q.From = append(q.From, v)
 			}
 			continue
-		case f == "ekli" || f == "ek:var" || f == "ekler":
+		case strings.HasPrefix(f, "kime:") || strings.HasPrefix(f, "to:"):
+			v := w[strings.IndexByte(w, ':')+1:]
+			if v == "" && i+1 < len(t) && !isFilterWord(Fold(t[i+1])) {
+				i++
+				v = t[i]
+			}
+			if v != "" {
+				q.To = append(q.To, v)
+			}
+			continue
+		case f == "ekli" || f == "ek:var" || f == "ekler" || f == "attachment" || f == "attachments" ||
+			f == "has:attachment" || f == "has:attach" || f == "has:ek":
 			q.Attach = true
 			continue
-		case f == "okunmamis" || f == "okunmamislar":
+		case f == "okunmamis" || f == "okunmamislar" || f == "unread" || f == "unseen":
 			q.Unread = true
 			continue
-		case f == "kaydedilen" || f == "kaydedilenler" || f == "yildizli":
+		case f == "kaydedilen" || f == "kaydedilenler" || f == "yildizli" || f == "saved" || f == "starred" || f == "flagged":
 			q.Saved = true
 			continue
-		case f == "bugun":
+		case f == "bugun" || f == "today":
 			q.Date = DateToday
 			continue
-		case f == "dun":
+		case f == "dun" || f == "yesterday":
 			q.Date = DateYesterday
 			continue
-		case f == "bu" && i+1 < len(t):
+		case (f == "bu" || f == "this") && i+1 < len(t):
 			switch Fold(t[i+1]) {
-			case "hafta":
+			case "hafta", "week":
 				q.Date, i = DateThisWeek, i+1
 				continue
-			case "ay":
+			case "ay", "month":
 				q.Date, i = DateThisMonth, i+1
 				continue
 			}
@@ -166,12 +184,17 @@ func Parse(s string) Query {
 	for _, w := range q.From {
 		q.from = append(q.from, Fold(w))
 	}
+	for _, w := range q.To {
+		q.to = append(q.to, Fold(w))
+	}
 	return q
 }
 
 func isFilterWord(f string) bool {
 	switch f {
-	case "ekli", "okunmamis", "kaydedilen", "bugun", "dun", "bu":
+	case "ekli", "okunmamis", "kaydedilen", "bugun", "dun", "bu",
+		"unread", "unseen", "saved", "starred", "flagged", "today", "yesterday", "this",
+		"attachment", "attachments":
 		return true
 	}
 	return strings.Contains(f, ":")
@@ -198,6 +221,7 @@ func (q Query) Range(now time.Time) (since, before time.Time) {
 // address and subject (see Fold); Body is the folded text ("" if unknown).
 type Item struct {
 	FromHay string // folded sender name + address
+	ToHay   string // folded To/Cc names and addresses
 	Hay     string // folded sender + address + subject
 	Body    string // folded text, may be empty
 	Date    time.Time
@@ -243,6 +267,11 @@ func (q Query) Match(it Item, now time.Time) bool {
 	}
 	for _, f := range q.from {
 		if !strings.Contains(it.FromHay, f) {
+			return false
+		}
+	}
+	for _, f := range q.to {
+		if !strings.Contains(it.ToHay, f) {
 			return false
 		}
 	}

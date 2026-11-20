@@ -5,6 +5,7 @@ import (
 	"html"
 	"regexp"
 	"strings"
+	"termail/internal/i18n"
 )
 
 // BrowserHTML is a self-contained HTML page for opening a mail in a
@@ -60,7 +61,7 @@ func browserHeader(p *Parsed) string {
 	}
 	return `<header style="font-family:system-ui,sans-serif;border-bottom:1px solid #ccc;margin:0 0 1.25em;padding:12px 0;color:#222">` +
 		`<table style="border-collapse:collapse;font-size:14px">` +
-		row("Kimden", from) + row("Kime", to) + row("Tarih", date) + row("Konu", p.Subject) +
+		row(i18n.T("Kimden"), from) + row(i18n.T("Kime"), to) + row(i18n.T("Tarih"), date) + row(i18n.T("Konu"), p.Subject) +
 		`</table></header>`
 }
 

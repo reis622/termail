@@ -18,6 +18,7 @@ import (
 	"termail/internal/backend"
 	"termail/internal/discover"
 	"termail/internal/grid"
+	"termail/internal/i18n"
 )
 
 type loginModel struct {
@@ -79,9 +80,9 @@ func newLogin(m *Model, canCancel bool) *loginModel {
 	l.pass = edit.New(edit.Single)
 	l.pass.Mask = '•'
 	l.imapIn = edit.New(edit.Single)
-	l.imapIn.Placeholder = "ör. mail.alanadi.com"
+	l.imapIn.Placeholder = i18n.T("ör. mail.alanadi.com")
 	l.smtpIn = edit.New(edit.Single)
-	l.smtpIn.Placeholder = "ör. smtp.alanadi.com"
+	l.smtpIn.Placeholder = i18n.T("ör. smtp.alanadi.com")
 	l.email.Focus()
 	return l
 }
@@ -140,7 +141,7 @@ func gmailPassWarn(p string) string {
 	if ok {
 		return ""
 	}
-	return fmt.Sprintf("Gmail uygulama şifreleri 16 küçük harften oluşur; yazdığın şifre %d karakter.", len([]rune(p)))
+	return i18n.Tf("Gmail uygulama şifreleri 16 küçük harften oluşur; yazdığın şifre %d karakter.", len([]rune(p)))
 }
 
 // passSummary describes a password for the debug log without revealing it.
@@ -158,7 +159,7 @@ func passSummary(p string) string {
 			other++
 		}
 	}
-	return fmt.Sprintf("uzunluk %d (harf %d, rakam %d, boşluk %d, diğer %d)", len([]rune(p)), letters, digits, spaces, other)
+	return i18n.Tf("uzunluk %d (harf %d, rakam %d, boşluk %d, diğer %d)", len([]rune(p)), letters, digits, spaces, other)
 }
 
 // cleanAddress: an address as typed or pasted, without spaces, invisible
@@ -250,13 +251,13 @@ func (l *loginModel) key(k tea.KeyMsg) tea.Cmd {
 			if l.device == nil && l.toDevice != nil {
 				l.toDevice()
 				l.toDevice = nil
-				l.status, l.statusFG = "Kodla girişe geçiliyor…", cDim
+				l.status, l.statusFG = i18n.T("Kodla girişe geçiliyor…"), cDim
 			}
 			return nil
 		case "c", "C":
 			if l.device != nil {
 				copyTextFn(l.device.Code)
-				l.status, l.statusFG = "Kod panoya kopyalandı.", cGreen
+				l.status, l.statusFG = i18n.T("Kod panoya kopyalandı."), cGreen
 			}
 			return nil
 		}
@@ -266,7 +267,7 @@ func (l *loginModel) key(k tea.KeyMsg) tea.Cmd {
 		if l.busy && l.cancel != nil {
 			l.cancel()
 			l.busy, l.waiting, l.device, l.toDevice = false, false, nil, nil
-			l.status, l.statusFG = "Giriş iptal edildi.", cDim
+			l.status, l.statusFG = i18n.T("Giriş iptal edildi."), cDim
 			return nil
 		}
 		if l.canCancel {
@@ -284,7 +285,7 @@ func (l *loginModel) key(k tea.KeyMsg) tea.Cmd {
 	case keyCopyLink:
 		if l.authURL != "" {
 			copyTextFn(l.authURL)
-			l.status, l.statusFG = "Bağlantı panoya kopyalandı; tarayıcının adres çubuğuna yapıştır.", cGreen
+			l.status, l.statusFG = i18n.T("Bağlantı panoya kopyalandı; tarayıcının adres çubuğuna yapıştır."), cGreen
 		}
 		return nil
 	case "enter":
@@ -325,10 +326,10 @@ func (l *loginModel) openAppPasswordHelp() {
 	l.helpURL = u
 	copyTextFn(u)
 	if err := openURLFn(u); err != nil {
-		l.status, l.statusFG = "Tarayıcı açılamadı. Bu adresi tarayıcına yaz (panoya da kopyalandı):", cYellow
+		l.status, l.statusFG = i18n.T("Tarayıcı açılamadı. Bu adresi tarayıcına yaz (panoya da kopyalandı):"), cYellow
 		return
 	}
-	l.status, l.statusFG = "Sayfa tarayıcında açılıyor. Açılmazsa bu adresi tarayıcına yaz:", cDim
+	l.status, l.statusFG = i18n.T("Sayfa tarayıcında açılıyor. Açılmazsa bu adresi tarayıcına yaz:"), cDim
 }
 
 func appPasswordURL(domain string) string {
@@ -348,7 +349,7 @@ func (l *loginModel) submit() tea.Cmd {
 	m := l.m
 	email := cleanAddress(l.email.Value())
 	if !auth.ValidAddress(email) || discover.Domain(email) == "" {
-		l.status, l.statusFG = "Geçerli bir e-posta adresi yaz.", cRed
+		l.status, l.statusFG = i18n.T("Geçerli bir e-posta adresi yaz."), cRed
 		return l.setFocus(0)
 	}
 	if email != l.email.Value() {
@@ -372,7 +373,7 @@ func (l *loginModel) submit() tea.Cmd {
 		return l.setFocus(1)
 	}
 	if l.cleanPass() == "" {
-		l.status, l.statusFG = "Şifreni yaz.", cRed
+		l.status, l.statusFG = i18n.T("Şifreni yaz."), cRed
 		return l.setFocus(1)
 	}
 	var manual *discover.Settings
@@ -380,13 +381,13 @@ func (l *loginModel) submit() tea.Cmd {
 		in, err1 := discover.ParseManual(l.imapIn.Value(), true)
 		out, err2 := discover.ParseManual(l.smtpIn.Value(), false)
 		if err1 != nil || err2 != nil {
-			l.status, l.statusFG = "Gelen ve giden sunucu adlarını yaz.", cRed
+			l.status, l.statusFG = i18n.T("Gelen ve giden sunucu adlarını yaz."), cRed
 			return nil
 		}
 		manual = &discover.Settings{Provider: "Diğer", Incoming: in, Outgoing: out, Auth: discover.AuthPassword, SaveSent: true}
 	}
 	l.busy = true
-	l.status, l.statusFG = "Sunucu aranıyor…", cAccent
+	l.status, l.statusFG = i18n.T("Sunucu aranıyor…"), cAccent
 	ctx, cancel := context.WithTimeout(m.ctx, 60*time.Second)
 	l.cancel = cancel
 	pass := l.cleanPass()
@@ -457,7 +458,7 @@ func (l *loginModel) startMicrosoft() tea.Cmd {
 	m := l.m
 	email := cleanAddress(l.email.Value())
 	if !auth.ValidAddress(email) || discover.Domain(email) == "" {
-		l.status, l.statusFG = "Önce e-posta adresini yaz.", cRed
+		l.status, l.statusFG = i18n.T("Önce e-posta adresini yaz."), cRed
 		return l.setFocus(0)
 	}
 	if !l.msEnabled() {
@@ -491,7 +492,7 @@ func (l *loginModel) startMicrosoft() tea.Cmd {
 		open := func(u string) error {
 			send(loginURLMsg{url: u})
 			if err := openURLFn(u); err != nil {
-				send(loginStatusMsg{"Tarayıcı açılamadı. Ctrl+L ile bağlantıyı kopyalayıp tarayıcına yapıştır ya da k ile kodla gir.", cYellow})
+				send(loginStatusMsg{i18n.T("Tarayıcı açılamadı. Ctrl+L ile bağlantıyı kopyalayıp tarayıcına yapıştır ya da k ile kodla gir."), cYellow})
 				return err
 			}
 			return nil
@@ -567,24 +568,24 @@ func (m *Model) onLoginDone(d loginDoneMsg) tea.Cmd {
 	switch {
 	case d.needManual:
 		l.manual = true
-		l.status, l.statusFG = "Sunucu bulunamadı. Gelen ve giden sunucu adlarını yazabilirsin.", cYellow
+		l.status, l.statusFG = i18n.T("Sunucu bulunamadı. Gelen ve giden sunucu adlarını yazabilirsin."), cYellow
 		return l.setFocus(2)
 	case d.msDetected:
 		l.forceMS = true
-		l.status, l.statusFG = "Bu bir Microsoft hesabı; Enter ile tarayıcıda giriş yap.", cAccent
+		l.status, l.statusFG = i18n.T("Bu bir Microsoft hesabı; Enter ile tarayıcıda giriş yap."), cAccent
 		return l.setFocus(0)
 	case d.err != nil:
 		m.logErr("login", d.err)
 		msg := friendly(d.err)
 		if errors.Is(d.err, backend.ErrAuth) && l.isMS() {
-			msg = "Microsoft girişi tamam ama posta kutusu açılmadı. Outlook ayarlarında posta programı erişiminin açık olduğundan emin ol."
+			msg = i18n.T("Microsoft girişi tamam ama posta kutusu açılmadı. Outlook ayarlarında posta programı erişiminin açık olduğundan emin ol.")
 		} else if errors.Is(d.err, backend.ErrAuth) {
 			msg = backend.AuthReason(d.err)
 			if l.passWarn != "" {
 				msg = l.passWarn + " " + msg
 			}
 			if m.opt.Timing || os.Getenv("TERMAIL_DEBUG") == "1" {
-				m.log.Printf("giriş reddedildi: %v", d.err) // server text only
+				m.log.Printf(i18n.Tf("giriş reddedildi: %v"), d.err) // server text only
 			}
 		}
 		l.status, l.statusFG = msg, cRed
@@ -602,7 +603,7 @@ func (m *Model) onLoginDone(d loginDoneMsg) tea.Cmd {
 		if d.secret != "" {
 			if err := account.SetSecret(d.acct.Email, d.secretKind, d.secret); err != nil {
 				m.logErr("keyring", err)
-				m.toastInfo(1, "", "Giriş bilgisi Windows'ta saklanamadı; bir dahaki açılışta yeniden sorulacak.")
+				m.toastInfo(1, "", i18n.T("Giriş bilgisi Windows'ta saklanamadı; bir dahaki açılışta yeniden sorulacak."))
 			}
 		}
 		if l.relogin < 0 {
@@ -622,7 +623,7 @@ func (m *Model) onLoginDone(d loginDoneMsg) tea.Cmd {
 		a.B, a.Err, a.State = d.b, "", stConnecting
 		m.cur, m.folder, m.cursor, m.offset = i, a.inbox(), 0, 0
 		m.focus, m.login, m.active = focusList, nil, 0
-		m.toastInfo(2, "", "Giriş bilgisi güncellendi: "+d.acct.Email)
+		m.toastInfo(2, "", i18n.T("Giriş bilgisi güncellendi: ")+d.acct.Email)
 		return m.connectAccount(i)
 	}
 	a := &Acct{Cfg: d.acct, B: d.b, Lists: map[string][]backend.Envelope{}, Loaded: map[string]bool{}, Open: true}
@@ -632,7 +633,7 @@ func (m *Model) onLoginDone(d loginDoneMsg) tea.Cmd {
 	m.focus = focusList
 	m.login = nil
 	m.active = 0
-	m.toastInfo(2, "", "Hoş geldin! "+d.acct.Email+" eklendi.")
+	m.toastInfo(2, "", i18n.T("Hoş geldin! ")+d.acct.Email+" eklendi.")
 	return m.startAccount(i)
 }
 
@@ -657,12 +658,12 @@ func (l *loginModel) draw(g *grid.Grid) {
 	g.Box(cx, cy, cw, ch, cBorder, cPanel, "", "")
 	fx, fw := cx+4, cw-8
 	y := cy + 2
-	g.Put(fx, y, "Hoş geldin", stb(cFG), 0)
+	g.Put(fx, y, i18n.T("Hoş geldin"), stb(cFG), 0)
 	y++
 	if ms {
 		g.Put(fx, y, "E-posta adresini gir, yeter.", st(cDim), 0)
 	} else {
-		g.Put(fx, y, "E-posta adresini ve şifreni gir, yeter.", st(cDim), 0)
+		g.Put(fx, y, i18n.T("E-posta adresini ve şifreni gir, yeter."), st(cDim), 0)
 	}
 	y += 2
 	field := func(label string, in *edit.Editor, idx int, bg string) {
@@ -691,7 +692,7 @@ func (l *loginModel) draw(g *grid.Grid) {
 	}
 	field("E-posta", &l.email, 0, cBG)
 	if !ms {
-		field("Şifre", &l.pass, 1, cRaised)
+		field(i18n.T("Şifre"), &l.pass, 1, cRaised)
 		if l.manual {
 			field("Gelen posta sunucusu", &l.imapIn, 2, cBG)
 			y--
@@ -700,20 +701,20 @@ func (l *loginModel) draw(g *grid.Grid) {
 		}
 		if s, ok := l.provider(); ok && s.Auth == discover.AuthAppPassword {
 			g.Put(fx, y, "i", stb(cYellow), 0)
-			g.Put(fx+2, y, s.Provider+"'de normal şifre yerine uygulama şifresi gir.", st(cDim), fw-2)
+			g.Put(fx+2, y, s.Provider+i18n.T("'de normal şifre yerine uygulama şifresi gir."), st(cDim), fw-2)
 			y++
-			g.Put(fx+2, y, "Nasıl alınır?  Ctrl + O harfi", st(cAccent), fw-2)
+			g.Put(fx+2, y, i18n.T("Nasıl alınır?  Ctrl + O harfi"), st(cAccent), fw-2)
 			y += 2
 		} else {
 			y++
 		}
 		g.Put(fx, y, "■", st(cGreen), 0)
-		g.Put(fx+2, y, "Şifren Windows'ta güvenle saklanır, bir daha sorulmaz.", st(cFaint), fw-2)
+		g.Put(fx+2, y, i18n.T("Şifren Windows'ta güvenle saklanır, bir daha sorulmaz."), st(cFaint), fw-2)
 		y += 2
 	} else {
-		g.Put(fx, y, "Microsoft hesabı için şifre gerekmez.", st(cFG), 0)
+		g.Put(fx, y, i18n.T("Microsoft hesabı için şifre gerekmez."), st(cFG), 0)
 		y++
-		g.Put(fx, y, "Tarayıcıda bir kez onay vermen yeterli.", st(cDim), 0)
+		g.Put(fx, y, i18n.T("Tarayıcıda bir kez onay vermen yeterli."), st(cDim), 0)
 		y += 2
 		if !l.msEnabled() && l.status == "" {
 			g.Put(fx, y, msUnavailable, st(cYellow), fw)
@@ -728,7 +729,7 @@ func (l *loginModel) draw(g *grid.Grid) {
 			g.Fill(fx+1, y+1, fw-2, bh-2, cWaitBG)
 			el := l.m.opt.Now().Sub(l.waitStart)
 			if l.device != nil {
-				g.Put(fx+2, y+1, "Tarayıcıda şu adrese git:", stbg(cDim, cWaitBG), 0)
+				g.Put(fx+2, y+1, i18n.T("Tarayıcıda şu adrese git:"), stbg(cDim, cWaitBG), 0)
 				g.Put(fx+2, y+2, l.device.URL, stbgb(cAccent, cWaitBG, true), fw-4)
 				g.Put(fx+2, y+4, "ve bu kodu gir:", stbg(cDim, cWaitBG), 0)
 				big := " " + spaced(l.device.Code) + " "
@@ -738,17 +739,17 @@ func (l *loginModel) draw(g *grid.Grid) {
 				g.Put(fx+2, y+7, "c: kodu kopyala", stbg(cFaint, cWaitBG), fw-4)
 			} else {
 				g.Put(fx+2, y+1, "●", stbg(cAccent, cWaitBG), 0)
-				g.Put(fx+4, y+1, "Tarayıcıda onay bekleniyor…", stbg(cFG, cWaitBG), 0)
+				g.Put(fx+4, y+1, i18n.T("Tarayıcıda onay bekleniyor…"), stbg(cFG, cWaitBG), 0)
 				g.RPut(fx+fw-2, y+1, fmt.Sprintf("%d:%02d", int(el.Minutes()), int(el.Seconds())%60), stbg(cFaint, cWaitBG))
-				g.Put(fx+2, y+2, "Açılmadıysa: Ctrl+L bağlantıyı kopyalar.", stbg(cDim, cWaitBG), fw-4)
-				g.Put(fx+2, y+3, "Tarayıcıda hata mı var? k: kodla giriş", stbg(cDim, cWaitBG), fw-4)
+				g.Put(fx+2, y+2, i18n.T("Açılmadıysa: Ctrl+L bağlantıyı kopyalar."), stbg(cDim, cWaitBG), fw-4)
+				g.Put(fx+2, y+3, i18n.T("Tarayıcıda hata mı var? k: kodla giriş"), stbg(cDim, cWaitBG), fw-4)
 			}
 			y += bh + 1
 		} else {
 			y += 1
 		}
 		g.Put(fx, y, "■", st(cGreen), 0)
-		g.Put(fx+2, y, "Giriş Windows'ta güvenle saklanır, bir daha sorulmaz.", st(cFaint), fw-2)
+		g.Put(fx+2, y, i18n.T("Giriş Windows'ta güvenle saklanır, bir daha sorulmaz."), st(cFaint), fw-2)
 		y += 2
 	}
 	if l.status != "" {
@@ -764,12 +765,12 @@ func (l *loginModel) draw(g *grid.Grid) {
 	} else if l.busy && !l.waiting {
 		y++
 	}
-	bt := "  Enter  ·  Giriş yap  "
+	bt := i18n.T("  Enter  ·  Giriş yap  ")
 	if ms {
-		bt = "  Enter  ·  Tarayıcıda Microsoft ile giriş yap  "
+		bt = i18n.T("  Enter  ·  Tarayıcıda Microsoft ile giriş yap  ")
 	}
 	if l.busy && !ms {
-		bt = "  Giriş yapılıyor…  "
+		bt = i18n.T("  Giriş yapılıyor…  ")
 	}
 	if ms && (!l.msEnabled() || l.busy) {
 		bt = "" // nothing to press now
@@ -777,25 +778,25 @@ func (l *loginModel) draw(g *grid.Grid) {
 	if bt != "" && y < cy+ch-1 {
 		g.Put(cx+(cw-grid.Width(bt))/2, min(y, cy+ch-2), bt, stbgb(cBG, cAccent, true), 0)
 	}
-	note := "Sunucu ayarları otomatik bulunur; elle girmen gerekmez."
+	note := i18n.T("Sunucu ayarları otomatik bulunur; elle girmen gerekmez.")
 	g.Put((g.W-grid.Width(note))/2, cy+ch+1, note, st(cFaint), 0)
-	esc := "Çıkış"
+	esc := i18n.T("Çıkış")
 	if l.canCancel {
-		esc = "Geri"
+		esc = i18n.T("Geri")
 	}
 	if l.busy {
-		esc = "İptal"
+		esc = i18n.T("İptal")
 	}
 	if ms && !l.msEnabled() {
 		keybar(g, g.H-1, []keyHint{{"Esc", esc}}, "", nil)
 	} else if ms && l.device != nil {
 		keybar(g, g.H-1, []keyHint{{"c", "Kodu kopyala"}, {"Ctrl+L", "Adresi kopyala"}, {"Esc", esc}}, "", nil)
 	} else if ms && l.busy {
-		keybar(g, g.H-1, []keyHint{{"Ctrl+L", "Bağlantıyı kopyala"}, {"k", "Kodla giriş"}, {"Esc", esc}}, "", nil)
+		keybar(g, g.H-1, []keyHint{{"Ctrl+L", i18n.T("Bağlantıyı kopyala")}, {"k", i18n.T("Kodla giriş")}, {"Esc", esc}}, "", nil)
 	} else if ms {
-		keybar(g, g.H-1, []keyHint{{"Enter", "Tarayıcıda giriş yap"}, {"Esc", esc}}, "", nil)
+		keybar(g, g.H-1, []keyHint{{"Enter", i18n.T("Tarayıcıda giriş yap")}, {"Esc", esc}}, "", nil)
 	} else {
-		keybar(g, g.H-1, []keyHint{{"Enter", "Giriş"}, {"Tab", "Sonraki alan"}, {"F2", "Şifreyi göster/gizle"}, {"Ctrl + O harfi", "Uygulama şifresi nasıl alınır"}, {"Esc", esc}}, "", nil)
+		keybar(g, g.H-1, []keyHint{{"Enter", i18n.T("Giriş")}, {"Tab", "Sonraki alan"}, {"F2", i18n.T("Şifreyi göster/gizle")}, {"Ctrl + O harfi", i18n.T("Uygulama şifresi nasıl alınır")}, {"Esc", esc}}, "", nil)
 	}
 }
 

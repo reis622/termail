@@ -10,11 +10,12 @@ import (
 
 	"termail/internal/backend"
 	"termail/internal/grid"
+	"termail/internal/i18n"
 )
 
 // ---- unified inbox ("Tüm Gelen Kutuları") ----
 
-const unifiedTitle = "Tüm Gelen Kutuları"
+func unifiedTitle() string { return i18n.T("Tüm Gelen Kutuları") }
 
 // acctColors label accounts in the unified inbox (cycled).
 var acctColors = []string{cAccent, cGreen, cYellow, cPurple, cRed}
@@ -268,7 +269,7 @@ func (p *accountPicker) draw(m *Model, g *grid.Grid) {
 	w := min(64, g.W-4)
 	h := len(m.accts) + 8
 	x, y := (g.W-w)/2, max(1, (g.H-h)/2-2)
-	g.Box(x, y, w, h, cBorderF, cPanel, "Hesaba geç", cAccent)
+	g.Box(x, y, w, h, cBorderF, cPanel, i18n.T("Hesaba geç"), cAccent)
 	g.RPut(x+w-3, y, " Esc: kapat ", st(cDim))
 	m.hits.add(hit{w: g.W, h: g.H, kind: hitModal})
 	row := func(i, yy int, num, name, sub string, unread int, color string, active bool) {
@@ -294,7 +295,7 @@ func (p *accountPicker) draw(m *Model, g *grid.Grid) {
 		}
 	}
 	yy := y + 2
-	row(0, yy, "0", unifiedTitle, "", m.totalUnread(), cFG, m.virt == viewUnified)
+	row(0, yy, "0", unifiedTitle(), "", m.totalUnread(), cFG, m.virt == viewUnified)
 	yy += 2
 	for i, a := range m.accts {
 		num := ""
@@ -304,9 +305,9 @@ func (p *accountPicker) draw(m *Model, g *grid.Grid) {
 		sub := a.Cfg.Email
 		switch a.State {
 		case stNeedsLogin:
-			sub = "giriş gerekli"
+			sub = i18n.T("giriş gerekli")
 		case stOffline:
-			sub = "çevrimdışı"
+			sub = i18n.T("çevrimdışı")
 		}
 		row(i+1, yy, num, a.Cfg.Name, sub, a.inboxUnread(), acctColor(i), m.virt == viewFolder && i == m.cur)
 		yy++
@@ -320,7 +321,7 @@ func (p *accountPicker) draw(m *Model, g *grid.Grid) {
 		bg = cSelFocus
 	}
 	g.Put(x+3, yy, " + ", stbg(cFG, cKey), 0)
-	g.Put(x+9, yy, "Hesap ekle", grid.Style{FG: cAccent, BG: bg}, 0)
+	g.Put(x+9, yy, i18n.T("Hesap ekle"), grid.Style{FG: cAccent, BG: bg}, 0)
 }
 
 // drawAccountChips draws "F1 Tüm Gelen Kutuları  F2 Kişisel 3  F3 İş …"
@@ -351,7 +352,7 @@ func (m *Model) drawAccountChips(g *grid.Grid, x, maxX int) {
 		x = g.Put(x, 0, " ", stbg(cDim, cBar), 0)
 		return true
 	}
-	if !put(-1, "F1", unifiedTitle, m.totalUnread(), m.virt == viewUnified) {
+	if !put(-1, "F1", unifiedTitle(), m.totalUnread(), m.virt == viewUnified) {
 		return
 	}
 	for i, a := range m.accts {

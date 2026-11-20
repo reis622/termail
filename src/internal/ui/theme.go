@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"termail/internal/grid"
+	"termail/internal/i18n"
 )
 
 // Anthracite palette from the approved previews (no pure black).
@@ -143,6 +144,6 @@ func withComposeHint(items []keyHint) []keyHint {
 		}
 	}
 	out := make([]keyHint, 0, len(items)+1)
-	out = append(out, keyHint{"n", "Yeni"})
+	out = append(out, keyHint{"n", i18n.T("Yeni")})
 	return append(out, items...)
 }

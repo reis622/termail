@@ -12,6 +12,7 @@ import (
 	"termail/internal/backend"
 	"termail/internal/grid"
 	"termail/internal/htmltext"
+	"termail/internal/i18n"
 	"termail/internal/mailmsg"
 	"termail/internal/toast"
 )
@@ -246,7 +247,7 @@ func (m *Model) copySelection() bool {
 	if t == "" {
 		return false
 	}
-	m.copied(t, "Kopyalandı")
+	m.copied(t, i18n.T("Kopyalandı"))
 	return true
 }
 
@@ -364,7 +365,7 @@ func (m *Model) textRelease() tea.Cmd {
 func (m *Model) copyBody(k bodyKey, att bool, ai int) tea.Cmd {
 	p := m.body(k)
 	if p == nil {
-		m.toastInfo(toast.Info, "", "İleti henüz yükleniyor.")
+		m.toastInfo(toast.Info, "", i18n.T("İleti henüz yükleniyor."))
 		return nil
 	}
 	text := p.Text
@@ -375,7 +376,7 @@ func (m *Model) copyBody(k bodyKey, att bool, ai int) tea.Cmd {
 		m.toastInfo(toast.Info, "", "Bu iletide kopyalanacak metin yok.")
 		return nil
 	}
-	m.copied(text, "Metin kopyalandı")
+	m.copied(text, i18n.T("Metin kopyalandı"))
 	return nil
 }
 
@@ -386,10 +387,10 @@ func (m *Model) copySender(e backend.Envelope, p *mailmsg.Parsed) tea.Cmd {
 		addr = p.From[0].Address
 	}
 	if addr == "" {
-		m.toastInfo(toast.Info, "", "Gönderen adresi yok.")
+		m.toastInfo(toast.Info, "", i18n.T("Gönderen adresi yok."))
 		return nil
 	}
-	m.copied(addr, "Adres kopyalandı: "+addr)
+	m.copied(addr, i18n.T("Adres kopyalandı: ")+addr)
 	return nil
 }
 
@@ -398,7 +399,7 @@ func (m *Model) withSelKeys(items []keyHint) []keyHint {
 	if !m.rsel.valid(&m.tv) {
 		return items
 	}
-	out := []keyHint{{"Ctrl+C", "Seçileni kopyala"}, {"Esc", "Seçimi kaldır"}}
+	out := []keyHint{{"Ctrl+C", i18n.T("Seçileni kopyala")}, {"Esc", i18n.T("Seçimi kaldır")}}
 	for _, it := range items {
 		if it.key != "Esc" {
 			out = append(out, it)

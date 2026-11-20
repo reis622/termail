@@ -9,6 +9,7 @@ import (
 
 	"termail/internal/backend"
 	"termail/internal/grid"
+	"termail/internal/i18n"
 	"termail/internal/mailmsg"
 	"termail/internal/search"
 	"termail/internal/toast"
@@ -190,15 +191,14 @@ func (m *Model) groupKey(key string) (tea.Cmd, bool) {
 		if m.inTrashView() {
 			return m.restoreSenderMails(), true
 		}
-		m.toastInfo(toast.Info, "", "Bu bir grup başlığı. Önce Enter ile aç.")
+		m.toastInfo(toast.Info, "", i18n.T("Bu bir grup başlığı. Önce Enter ile aç."))
 		return nil, true
 	case "e", "b", "B", "k", "r", "a", "R", "f", "o", "i", "c", "C", linksKey, attKey:
-		m.toastInfo(toast.Info, "", "Bu bir grup başlığı. Önce Enter ile aç.")
+		m.toastInfo(toast.Info, "", i18n.T("Bu bir grup başlığı. Önce Enter ile aç."))
 		return nil, true
 	}
 	return nil, false
 }
-
 
 func (m *Model) openGroupTab(gi *grpInfo) tea.Cmd {
 	if gi == nil {
@@ -236,9 +236,9 @@ func (m *Model) toggleGrouping() tea.Cmd {
 		}
 	}
 	if m.grouped {
-		m.toastInfo(toast.Info, "", "Gönderene göre gruplandı.")
+		m.toastInfo(toast.Info, "", i18n.T("Gönderene göre gruplandı."))
 	} else {
-		m.toastInfo(toast.Info, "", "Düz liste.")
+		m.toastInfo(toast.Info, "", i18n.T("Düz liste."))
 	}
 	return m.previewCmd()
 }
@@ -297,7 +297,7 @@ func (m *Model) drawGroupRow(g *grid.Grid, x0, w, mx, mw, y int, e backend.Envel
 	right := grid.Width(date)
 	badge := ""
 	if gi.fresh > 0 && !gi.open {
-		badge = fmt.Sprintf("● %d yeni", gi.fresh)
+		badge = i18n.Tf("● %d yeni", gi.fresh)
 		right += grid.Width(badge) + 2
 	}
 	cnt := fmt.Sprintf(" (%d)", gi.n)
@@ -316,15 +316,15 @@ func (m *Model) groupPreview(g *grid.Grid, x, y, w int) bool {
 		return false
 	}
 	g.Put(x, y, gi.label, stb(cFG), w)
-	g.Put(x, y+1, fmt.Sprintf("%d ileti · %d okunmamış", gi.n, gi.unread), st(cDim), w)
-	hint := "Enter veya →: grubu aç"
+	g.Put(x, y+1, i18n.Tf("%d ileti · %d okunmamış", gi.n, gi.unread), st(cDim), w)
+	hint := i18n.T("Enter veya →: grubu aç")
 	if gi.open {
 		hint = "← veya Enter: grubu kapat"
 	}
 	g.Put(x, y+3, hint, st(cFaint), w)
-	g.Put(x, y+4, "Shift+G: düz listeye dön", st(cFaint), w)
+	g.Put(x, y+4, i18n.T("Shift+G: düz listeye dön"), st(cFaint), w)
 	if m.inTrashView() {
-		g.Put(x, y+5, "m: bu gönderenin tümünü Gelen Kutusu'na geri yükle", st(cFaint), w)
+		g.Put(x, y+5, i18n.T("m: bu gönderenin tümünü Gelen Kutusu'na geri yükle"), st(cFaint), w)
 	}
 	return true
 }
@@ -355,7 +355,7 @@ func senderDeleteName(gi *grpInfo, mails []backend.Envelope) string {
 	if gi != nil && gi.key != "" {
 		return gi.key
 	}
-	return "gönderen"
+	return i18n.T("gönderen")
 }
 
 // askDeleteSender confirms, then deletes every mail of the sender under
@@ -389,12 +389,12 @@ func (m *Model) askDeleteSender() tea.Cmd {
 	name := senderDeleteName(gi, mails)
 	n := len(mails)
 	text := fmt.Sprintf("%s göndericisinin %d maili silinsin mi? (e/h)", name, n)
-	yes := "Evet, sil"
+	yes := i18n.T("Evet, sil")
 	if m.senderMailsInTrash(mails) {
 		text = fmt.Sprintf("%s göndericisinin %d maili kalıcı olarak silinsin mi? (e/h)", name, n)
-		yes = "Evet, kalıcı sil"
+		yes = i18n.T("Evet, kalıcı sil")
 	}
-	m.confirm = &confirmBox{strict: true, title: "Göndereni sil", text: text, yes: yes,
+	m.confirm = &confirmBox{strict: true, title: i18n.T("Göndereni sil"), text: text, yes: yes,
 		onYes: func() tea.Cmd { return m.deleteSenderMails(mails) }}
 	return nil
 }
@@ -431,7 +431,7 @@ func (m *Model) deleteSenderMails(mails []backend.Envelope) tea.Cmd {
 		}
 		trash := a.folderByRole(backend.RoleTrash)
 		if trash == "" {
-			m.toastInfo(toast.Error, "", a.Cfg.Email+": Çöp Kutusu bulunamadı, hiçbir şey silinmedi.")
+			m.toastInfo(toast.Error, "", a.Cfg.Email+i18n.T(": Çöp Kutusu bulunamadı, hiçbir şey silinmedi."))
 			return nil
 		}
 		gi, ok := byAcct[ai]
@@ -459,7 +459,7 @@ func (m *Model) restoreSenderMails() tea.Cmd {
 		return nil
 	}
 	if m.bulk != nil && m.bulk.done+m.bulk.failed < m.bulk.total {
-		m.toastInfo(toast.Info, "", "İşlem sürüyor…")
+		m.toastInfo(toast.Info, "", i18n.T("İşlem sürüyor…"))
 		return nil
 	}
 	mails := m.groupMembers(gi)
@@ -479,11 +479,11 @@ func (m *Model) restoreSenderMails() tea.Cmd {
 		a := m.accts[ai]
 		inbox := a.inbox()
 		if inbox == "" {
-			m.toastInfo(toast.Error, "", a.Cfg.Email+": Gelen Kutusu bulunamadı, hiçbir şey taşınmadı.")
+			m.toastInfo(toast.Error, "", a.Cfg.Email+i18n.T(": Gelen Kutusu bulunamadı, hiçbir şey taşınmadı."))
 			return nil
 		}
 		if a.B == nil {
-			m.toastInfo(toast.Error, "", a.Cfg.Email+" bağlı değil, hiçbir şey taşınmadı.")
+			m.toastInfo(toast.Error, "", a.Cfg.Email+i18n.T(" bağlı değil, hiçbir şey taşınmadı."))
 			return nil
 		}
 		gi, ok := byAcct[ai]

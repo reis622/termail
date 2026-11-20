@@ -12,6 +12,7 @@ import (
 	"termail/internal/backend"
 	"termail/internal/edit"
 	"termail/internal/grid"
+	"termail/internal/i18n"
 	"termail/internal/mailmsg"
 	"termail/internal/toast"
 )
@@ -126,9 +127,9 @@ func (m *Model) openCompose(mode composeMode, orig *bodyRef, e backend.Envelope)
 		from = orig.key.acct // answer from the account the mail arrived at
 	}
 	c := &composer{mode: mode, from: from, orig: orig, origEnv: e,
-		to: newInput(edit.Address, "alıcı@ornek.com, ikinci@ornek.com"), cc: newInput(edit.Address, ""), subject: newInput(edit.Single, "")}
-	c.body = newInput(edit.Multi, "İletini buraya yaz…")
-	title := "Yeni ileti"
+		to: newInput(edit.Address, i18n.T("alıcı@ornek.com, ikinci@ornek.com")), cc: newInput(edit.Address, ""), subject: newInput(edit.Single, "")}
+	c.body = newInput(edit.Multi, i18n.T("İletini buraya yaz…"))
+	title := i18n.T("Yeni ileti")
 	var p *mailmsg.Parsed
 	if orig != nil {
 		p = m.body(orig.key)
@@ -162,14 +163,14 @@ func (m *Model) openCompose(mode composeMode, orig *bodyRef, e backend.Envelope)
 		c.to.SetValue(mailmsg.FormatAddresses(to))
 		c.cc.SetValue(mailmsg.FormatAddresses(cc))
 		c.focus = fBody
-		title = "Yanıt: " + trimSubj(e.Subject)
+		title = i18n.T("Yanıt: ") + trimSubj(e.Subject)
 	case composeForward:
 		c.subject.SetValue(mailmsg.ForwardSubject(e.Subject))
 		if p != nil {
 			c.atts = append(c.atts, p.Attachments...)
 		}
 		c.focus = fTo
-		title = "İlet: " + trimSubj(e.Subject)
+		title = i18n.T("İlet: ") + trimSubj(e.Subject)
 	default:
 		c.focus = fTo
 	}
@@ -242,11 +243,11 @@ func (c *composer) applyFocus() tea.Cmd {
 func (c *composer) headerText() string {
 	switch c.mode {
 	case composeReply, composeReplyAll:
-		return "Yanıt yazılıyor"
+		return i18n.T("Yanıt yazılıyor")
 	case composeForward:
-		return "İleti iletiliyor"
+		return i18n.T("İleti iletiliyor")
 	}
-	return "Yeni ileti yazılıyor"
+	return i18n.T("Yeni ileti yazılıyor")
 }
 
 // field is the focused text field (nil on Gönderen / Ekler).
@@ -468,8 +469,8 @@ func (c *composer) askClose(m *Model) tea.Cmd {
 	m.confirm = &confirmBox{
 		title:  "Taslak",
 		text:   "Taslak olarak kaydedilsin mi?",
-		yes:    "Kaydet",
-		alt:    "Kaydetme",
+		yes:    i18n.T("Kaydet"),
+		alt:    i18n.T("Kaydetme"),
 		altKey: "d",
 		onYes:  func() tea.Cmd { return c.saveDraftAndClose(m) },
 		onAlt: func() tea.Cmd {
@@ -495,10 +496,10 @@ func (c *composer) fullBody(m *Model) string {
 		return strings.TrimRight(b, "\n") + "\n\n" + mailmsg.QuoteHeader(p) + "\n" + strings.Join(mailmsg.QuoteLines(p.Text), "\n") + "\n"
 	case composeForward:
 		hdr := "\n\n---------- İletilen ileti ----------\n" +
-			"Kimden: " + mailmsg.FormatAddresses(p.From) + "\n" +
-			"Tarih: " + mailmsg.LongDate(p.Date) + "\n" +
-			"Konu: " + p.Subject + "\n" +
-			"Kime: " + mailmsg.FormatAddresses(p.To) + "\n\n"
+			i18n.T("Kimden: ") + mailmsg.FormatAddresses(p.From) + "\n" +
+			i18n.T("Tarih: ") + mailmsg.LongDate(p.Date) + "\n" +
+			i18n.T("Konu: ") + p.Subject + "\n" +
+			i18n.T("Kime: ") + mailmsg.FormatAddresses(p.To) + "\n\n"
 		return strings.TrimRight(b, "\n") + hdr + p.Text + "\n"
 	}
 	return b
@@ -508,14 +509,14 @@ func (c *composer) build(m *Model, requireTo bool) (*mailmsg.Outgoing, error) {
 	a := m.accts[c.from]
 	to, err := mailmsg.ParseAddresses(c.to.Value())
 	if err != nil {
-		return nil, fmtErr("Kime alanındaki adreslerden biri geçersiz.")
+		return nil, errors.New(i18n.T("Kime alanındaki adreslerden biri geçersiz."))
 	}
 	cc, err := mailmsg.ParseAddresses(c.cc.Value())
 	if err != nil {
-		return nil, fmtErr("Bilgi alanındaki adreslerden biri geçersiz.")
+		return nil, errors.New(i18n.T("Bilgi alanındaki adreslerden biri geçersiz."))
 	}
 	if requireTo && len(to)+len(cc) == 0 {
-		return nil, fmtErr("En az bir alıcı yaz.")
+		return nil, errors.New(i18n.T("En az bir alıcı yaz."))
 	}
 	o := &mailmsg.Outgoing{From: &mail.Address{Name: a.Cfg.FullName, Address: a.Cfg.Email}, To: to, Cc: cc,
 		Subject: c.subject.Value(), Body: c.fullBody(m), Attachments: c.atts}
@@ -535,13 +536,13 @@ func (c *composer) send(m *Model) tea.Cmd {
 		return nil
 	}
 	if c.orig != nil && m.body(c.orig.key) == nil {
-		c.status, c.statusFG = "Asıl ileti henüz yüklenmedi, birkaç saniye sonra tekrar dene.", cYellow
+		c.status, c.statusFG = i18n.T("Asıl ileti henüz yüklenmedi, birkaç saniye sonra tekrar dene."), cYellow
 		return nil
 	}
 	if names := riskyNames(c.atts); names != "" {
-		m.confirm = &confirmBox{strict: true, title: "Program dosyası ekli",
+		m.confirm = &confirmBox{strict: true, title: i18n.T("Program dosyası ekli"),
 			text: names + " bir program dosyası. Gmail, Outlook ve çoğu e-posta servisi bu tür ekleri güvenlik nedeniyle geri çevirir; ileti alıcıya ulaşmaz.\n\nPaylaşmak için dosyayı bir bulut klasörüne koyup bağlantısını göndermek daha iyi olur.\n\nYine de gönderilsin mi? e/h",
-			yes:  "Yine de gönder", onYes: func() tea.Cmd { return c.dispatch(m, o) }}
+			yes:  i18n.T("Yine de gönder"), onYes: func() tea.Cmd { return c.dispatch(m, o) }}
 		return nil
 	}
 	return c.dispatch(m, o)
@@ -552,7 +553,7 @@ func (c *composer) send(m *Model) tea.Cmd {
 func (c *composer) dispatch(m *Model, o *mailmsg.Outgoing) tea.Cmd {
 	raw, err := mailmsg.Build(o)
 	if err != nil {
-		c.status, c.statusFG = "İleti hazırlanamadı.", cRed
+		c.status, c.statusFG = i18n.T("İleti hazırlanamadı."), cRed
 		m.logErr("build", err)
 		return nil
 	}
@@ -564,7 +565,7 @@ func (c *composer) dispatch(m *Model, o *mailmsg.Outgoing) tea.Cmd {
 	c.sending = true
 	c.status = ""
 	m.removeTab(c.tab)
-	id := m.toasts.Push(toast.Info, "", "Gönderiliyor…", m.opt.Now(), 10*time.Minute)
+	id := m.toasts.Push(toast.Info, "", i18n.T("Gönderiliyor…"), m.opt.Now(), 10*time.Minute)
 	m.sendsPending++
 	m.inflight[c] = true
 	b := a.B
@@ -596,7 +597,7 @@ func (c *composer) saveDraftAndClose(m *Model) tea.Cmd {
 	a := m.accts[c.from]
 	drafts := a.folderByRole(backend.RoleDrafts)
 	if drafts == "" {
-		c.status, c.statusFG = "Taslaklar klasörü bulunamadı; taslak kaydedilemedi. Ctrl+W ile yine de kapatabilirsin.", cYellow
+		c.status, c.statusFG = i18n.T("Taslaklar klasörü bulunamadı; taslak kaydedilemedi. Ctrl+W ile yine de kapatabilirsin."), cYellow
 		c.closing = true
 		return nil
 	}
@@ -639,20 +640,20 @@ func (m *Model) onSendDone(d sendDoneMsg) tea.Cmd {
 	switch {
 	case d.err == nil:
 		m.rememberSent(c)
-		m.toastInfo(toast.Success, "", "Gönderildi")
+		m.toastInfo(toast.Success, "", i18n.T("Gönderildi"))
 	case errors.Is(d.err, backend.ErrSentCopy):
 		m.rememberSent(c)
 		m.logErr("send", d.err)
-		m.toastInfo(toast.Info, "", "Gönderildi; yalnız kopyası Gönderilenler'e kaydedilemedi.")
+		m.toastInfo(toast.Info, "", i18n.T("Gönderildi; yalnız kopyası Gönderilenler'e kaydedilemedi."))
 	default:
 		m.logErr("send", d.err)
 		// bring the mail back exactly as it was, so nothing is lost
-		c.status, c.statusFG = "Gönderilemedi: "+sendErrText(d.err)+" Düzeltip Ctrl+S ile tekrar gönderebilirsin.", cRed
+		c.status, c.statusFG = i18n.T("Gönderilemedi: ")+sendErrText(d.err)+i18n.T(" Düzeltip Ctrl+S ile tekrar gönderebilirsin."), cRed
 		t := c.tab
 		t.compose = c
 		m.tabs = append(m.tabs, t)
 		m.active = len(m.tabs) - 1
-		m.toasts.Push(toast.Error, "", "Gönderilemedi; ileti yeniden açıldı.", m.opt.Now(), 6*time.Second)
+		m.toasts.Push(toast.Error, "", i18n.T("Gönderilemedi; ileti yeniden açıldı."), m.opt.Now(), 6*time.Second)
 		return c.applyFocus()
 	}
 	return nil
@@ -663,11 +664,11 @@ func sendErrText(err error) string {
 	s := strings.ToLower(err.Error())
 	switch {
 	case strings.Contains(s, "security issue") || strings.Contains(s, "blocked") || strings.Contains(s, "virus") || strings.Contains(s, "executable"):
-		return "Karşı taraf iletiyi güvenlik nedeniyle geri çevirdi (genellikle program dosyası eki yüzünden)."
+		return i18n.T("Karşı taraf iletiyi güvenlik nedeniyle geri çevirdi (genellikle program dosyası eki yüzünden).")
 	case strings.Contains(s, "size") || strings.Contains(s, "too large") || strings.Contains(s, "552"):
-		return "İleti çok büyük; ekleri küçült."
+		return i18n.T("İleti çok büyük; ekleri küçült.")
 	case strings.Contains(s, "recipient") || strings.Contains(s, "mailbox unavailable") || strings.Contains(s, "550 5.1.1"):
-		return "Alıcı adresi bulunamadı; adresi kontrol et."
+		return i18n.T("Alıcı adresi bulunamadı; adresi kontrol et.")
 	}
 	return friendly(err)
 }
@@ -675,7 +676,7 @@ func sendErrText(err error) string {
 func (c *composer) draw(m *Model, g *grid.Grid) {
 	top := 2
 	h := g.H - 3
-	title := map[composeMode]string{composeNew: "Yeni ileti", composeReply: "Yanıtla", composeReplyAll: "Tümüne yanıtla", composeForward: "İlet"}[c.mode]
+	title := map[composeMode]string{composeNew: i18n.T("Yeni ileti"), composeReply: i18n.T("Yanıtla"), composeReplyAll: i18n.T("Tümüne yanıtla"), composeForward: i18n.T("İlet")}[c.mode]
 	if c.subject.Value() != "" {
 		title += " · " + c.subject.Value()
 	}
@@ -698,7 +699,7 @@ func (c *composer) draw(m *Model, g *grid.Grid) {
 	}
 	y := top + 2
 	a := m.accts[c.from]
-	bg := field(y, fFrom, "Gönderen")
+	bg := field(y, fFrom, i18n.T("Gönderen"))
 	// clickable row + ‹ › arrows
 	m.hits.add(hit{x: lx, y: y, w: fx + fw - lx, h: 1, kind: hitFromRow})
 	ax := fx + 1
@@ -708,7 +709,7 @@ func (c *composer) draw(m *Model, g *grid.Grid) {
 	g.Put(ax+2, y, label, stbg(cFG, bg), fw-36)
 	g.Put(fx+fw-22, y, "›", stbg(cAccent, bg), 0)
 	m.hits.add(hit{x: fx + fw - 23, y: y, w: 3, h: 1, kind: hitFromNext})
-	g.RPut(fx+fw-1, y, "← → hesap değiştir", stbg(cFaint, bg))
+	g.RPut(fx+fw-1, y, i18n.T("← → hesap değiştir"), stbg(cFaint, bg))
 	gy := y
 	y += 2
 	var suggestY int
@@ -717,7 +718,7 @@ func (c *composer) draw(m *Model, g *grid.Grid) {
 		label string
 		in    *edit.Editor
 		hint  string
-	}{{fTo, "Kime", &c.to, ""}, {fCc, "Bilgi", &c.cc, "isteğe bağlı"}, {fSubject, "Konu", &c.subject, ""}} {
+	}{{fTo, i18n.T("Kime"), &c.to, ""}, {fCc, "Bilgi", &c.cc, i18n.T("isteğe bağlı")}, {fSubject, i18n.T("Konu"), &c.subject, ""}} {
 		bg := field(y, f.idx, f.label)
 		hw := 0
 		if f.hint != "" && f.in.Value() == "" {
@@ -736,7 +737,7 @@ func (c *composer) draw(m *Model, g *grid.Grid) {
 		c.drawSuggest(m, g, fx, suggestY, fw)
 	}
 	g.HLine(0, y, g.W, cBorder, "├", "┤")
-	g.Put(3, y, " İleti ", stb(cAccent), 0)
+	g.Put(3, y, i18n.T(" İleti "), stb(cAccent), 0)
 	y += 2
 	bottom := top + h - 6
 	// quoted original below the editor (faint)
@@ -750,13 +751,13 @@ func (c *composer) draw(m *Model, g *grid.Grid) {
 					quote = append(quote, "│ "+l)
 				}
 			case composeForward:
-				quote = append(quote, "──── İletilen ileti: "+mailmsg.Display(firstAddr(p.From))+", "+mailmsg.LongDate(p.Date)+" ────")
+				quote = append(quote, i18n.T("──── İletilen ileti: ")+mailmsg.Display(firstAddr(p.From))+", "+mailmsg.LongDate(p.Date)+" ────")
 				for _, l := range wrapText(p.Text, g.W-12) {
 					quote = append(quote, "│ "+l)
 				}
 			}
 		} else {
-			quote = []string{"(asıl ileti yükleniyor…)"}
+			quote = []string{i18n.T("(asıl ileti yükleniyor…)")}
 		}
 	}
 	avail := bottom - y
@@ -782,7 +783,7 @@ func (c *composer) draw(m *Model, g *grid.Grid) {
 		g.Put(lx+1, qy+i, l, st(cFaint), g.W-lx-4)
 	}
 	y = top + h - 4 // attachments sit below the text (Tab order: … Gövde → Ekler)
-	bg = field(y, fAttach, "Ekler")
+	bg = field(y, fAttach, i18n.T("Ekler"))
 	ax = fx + 1
 	if len(c.atts) == 0 {
 		g.Put(ax, y, "yok", stbg(cFaint, bg), 0)
@@ -801,14 +802,14 @@ func (c *composer) draw(m *Model, g *grid.Grid) {
 	}
 	hint := "Ctrl+E: ek ekle"
 	if c.focus == fAttach && len(c.atts) > 0 {
-		hint = "Delete: çıkar · Enter: ekle"
+		hint = i18n.T("Delete: çıkar · Enter: ekle")
 	}
 	g.RPut(fx+fw-1, y, hint, stbg(cFaint, bg))
 	// status line
 	status := c.status
 	sfg := c.statusFG
 	if status == "" {
-		status, sfg = "Ctrl+S ile gönder · Esc ile taslağa kaydedip kapat", cFaint
+		status, sfg = i18n.T("Ctrl+S ile gönder · Esc ile taslağa kaydedip kapat"), cFaint
 	}
 	g.Put(lx, top+h-2, status, st(sfg), g.W-lx-20)
 	words := len(strings.Fields(c.body.Value()))
@@ -843,7 +844,7 @@ func (c *composer) draw(m *Model, g *grid.Grid) {
 		c.picker.addHits(m, g)
 		return
 	}
-	keybar(g, g.H-1, []keyHint{{"Ctrl+S", "Gönder"}, {"Tab", "Alan"}, {"Ctrl+E", "Ek"}, {"Ctrl+K", "Kimden"}, {"Esc", "Kapat"}}, "? Yardım", &m.hits)
+	keybar(g, g.H-1, []keyHint{{"Ctrl+S", i18n.T("Gönder")}, {"Tab", "Alan"}, {"Ctrl+E", "Ek"}, {"Ctrl+K", i18n.T("Kimden")}, {"Esc", i18n.T("Kapat")}}, i18n.T("? Yardım"), &m.hits)
 }
 
 func firstAddr(l []*mail.Address) *mail.Address {

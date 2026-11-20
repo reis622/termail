@@ -10,6 +10,7 @@ import (
 
 	"termail/internal/grid"
 	"termail/internal/htmltext"
+	"termail/internal/i18n"
 	"termail/internal/mailmsg"
 	"termail/internal/toast"
 )
@@ -84,11 +85,11 @@ type linkPicker struct {
 
 func (m *Model) openLinks(p *mailmsg.Parsed) tea.Cmd {
 	if p == nil {
-		m.toastInfo(toast.Info, "", "İleti henüz yükleniyor.")
+		m.toastInfo(toast.Info, "", i18n.T("İleti henüz yükleniyor."))
 		return nil
 	}
 	if len(p.Links) == 0 {
-		m.toastInfo(toast.Info, "", "Bu iletide bağlantı yok.")
+		m.toastInfo(toast.Info, "", i18n.T("Bu iletide bağlantı yok."))
 		return nil
 	}
 	m.links = &linkPicker{links: p.Links}
@@ -124,7 +125,7 @@ func (lp *linkPicker) key(m *Model, key string) tea.Cmd {
 			v, _ := strconv.Atoi(lp.num)
 			lp.num = ""
 			if v < 1 || v > n {
-				m.toastInfo(toast.Info, "", "Bu numarada bağlantı yok.")
+				m.toastInfo(toast.Info, "", i18n.T("Bu numarada bağlantı yok."))
 				return nil
 			}
 			i = v - 1
@@ -132,7 +133,7 @@ func (lp *linkPicker) key(m *Model, key string) tea.Cmd {
 		return lp.open(m, i)
 	case "y":
 		copyTextFn(lp.links[lp.cur].URL)
-		m.toastInfo(toast.Success, "", "Kopyalandı")
+		m.toastInfo(toast.Success, "", i18n.T("Kopyalandı"))
 	default:
 		if len(key) == 1 && key[0] >= '0' && key[0] <= '9' {
 			lp.num += key
@@ -147,7 +148,7 @@ func (lp *linkPicker) key(m *Model, key string) tea.Cmd {
 			}
 			if v > n || v == 0 && len(lp.num) > 1 {
 				lp.num = ""
-				m.toastInfo(toast.Info, "", "Bu numarada bağlantı yok.")
+				m.toastInfo(toast.Info, "", i18n.T("Bu numarada bağlantı yok."))
 			}
 		}
 	}
@@ -165,10 +166,10 @@ func (lp *linkPicker) open(m *Model, i int) tea.Cmd {
 func (m *Model) openLink(u string) tea.Cmd {
 	safe, ok := htmltext.Normalize(u)
 	if !ok {
-		m.toastInfo(toast.Info, "", "Bu bağlantı güvenli değil; açılmadı.")
+		m.toastInfo(toast.Info, "", i18n.T("Bu bağlantı güvenli değil; açılmadı."))
 		return nil
 	}
-	m.toastInfo(toast.Info, "", "Tarayıcıda açılıyor…")
+	m.toastInfo(toast.Info, "", i18n.T("Tarayıcıda açılıyor…"))
 	if err := openURLFn(safe); err != nil {
 		m.toastErr("open link", errors.New("tarayıcı açılamadı; bağlantıyı y ile kopyalayabilirsin"))
 	}
@@ -182,7 +183,7 @@ func (lp *linkPicker) draw(m *Model, g *grid.Grid) {
 	h := rows + 7
 	x, y := (g.W-w)/2, max(1, (g.H-h)/2-1)
 	m.hits.add(hit{x: 0, y: 0, w: g.W, h: g.H, kind: hitModal})
-	g.Box(x, y, w, h, cBorderF, cPanel, "Bağlantılar", cAccent)
+	g.Box(x, y, w, h, cBorderF, cPanel, i18n.T("Bağlantılar"), cAccent)
 	g.RPut(x+w-3, y, " Esc: kapat ", st(cDim))
 	if lp.cur < lp.top {
 		lp.top = lp.cur
@@ -205,7 +206,7 @@ func (lp *linkPicker) draw(m *Model, g *grid.Grid) {
 		warn := htmltext.Mismatch(l.Text, l.URL)
 		right := " — " + dom
 		if warn {
-			right += " · Dikkat: farklı adrese gidiyor"
+			right += i18n.T(" · Dikkat: farklı adrese gidiyor")
 		}
 		rw := min(grid.Width(right), w-4-(cx-x)-10)
 		text := l.Text
@@ -224,12 +225,12 @@ func (lp *linkPicker) draw(m *Model, g *grid.Grid) {
 	if lp.cur < len(lp.links) {
 		g.Put(x+2, fy+1, "Adres: "+htmltext.Shorten(lp.links[lp.cur].URL, w-12), st(cDim), w-4)
 	}
-	hint := "↑↓ Enter: tarayıcıda aç · 1-9: doğrudan aç · y: adresi kopyala · Esc: kapat"
+	hint := i18n.T("↑↓ Enter: tarayıcıda aç · 1-9: doğrudan aç · y: adresi kopyala · Esc: kapat")
 	if len(lp.links) > 9 {
-		hint = "↑↓ Enter: aç · numarayı yazıp Enter · y: kopyala · Esc: kapat"
+		hint = i18n.T("↑↓ Enter: aç · numarayı yazıp Enter · y: kopyala · Esc: kapat")
 	}
 	if lp.num != "" {
-		hint = "Numara: " + lp.num + " · Enter: aç"
+		hint = "Numara: " + lp.num + i18n.T(" · Enter: aç")
 	}
 	g.Put(x+2, fy+2, hint, st(cFaint), w-4)
 }

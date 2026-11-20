@@ -4,6 +4,7 @@ import (
 	"maps"
 	"slices"
 
+	"termail/internal/i18n"
 	"termail/internal/localstore"
 )
 
@@ -19,7 +20,11 @@ func (m *Model) loadPrefs() {
 		m.prefs.GroupSeen = map[string]int64{}
 	}
 	if m.opt.Demo && m.opt.Store == nil && len(m.prefs.Recent) == 0 { // sample searches for the demo
-		m.prefs.Recent = []string{"fatura", "kimden:ayşe", "toplantı notları", "ekli bu hafta", "okunmamış"}
+		if i18n.Get() == i18n.EN {
+			m.prefs.Recent = []string{"invoice", "from:ayşe", "meeting notes", "has:attachment this week", "unread"}
+		} else {
+			m.prefs.Recent = []string{"fatura", "kimden:ayşe", "toplantı notları", "ekli bu hafta", i18n.T("okunmamış")}
+		}
 	}
 	if len(m.prefs.Open) == 0 {
 		return // first run: only the first account is expanded (see New)

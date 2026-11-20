@@ -17,6 +17,7 @@ import (
 	"unicode"
 
 	"golang.org/x/oauth2"
+	"termail/internal/i18n"
 )
 
 // DefaultMSClientID is the Microsoft (Azure) application ID used for
@@ -235,14 +236,14 @@ func BrowserLogin(ctx context.Context, cfg *oauth2.Config, loginHint string, ope
 		if e := q.Get("error"); e != "" {
 			ae := parseErr(e, q.Get("error_description"))
 			msg, _ := Friendly(ae)
-			fmt.Fprintf(w, page, "#e06c75", "✕", "Giriş tamamlanamadı", html.EscapeString(msg))
+			fmt.Fprintf(w, page, "#e06c75", "✕", i18n.T("Giriş tamamlanamadı"), html.EscapeString(msg))
 			select {
 			case ch <- result{err: ae}:
 			default:
 			}
 			return
 		}
-		fmt.Fprintf(w, page, "#98c379", "✓", "Giriş tamam, Termail'e dönebilirsin", "Bu sekmeyi kapatabilirsin.")
+		fmt.Fprintf(w, page, "#98c379", "✓", i18n.T("Giriş tamam, Termail'e dönebilirsin"), i18n.T("Bu sekmeyi kapatabilirsin."))
 		select {
 		case ch <- result{code: q.Get("code")}:
 		default:
@@ -410,27 +411,27 @@ func Friendly(err error) (msg string, tryDevice bool) {
 	}
 	switch e.Code {
 	case "AADSTS50011", "AADSTS500113": // redirect address not registered
-		return "Microsoft tarayıcıdan dönüşü kabul etmedi. Kodla girişe geçiliyor.", true
+		return i18n.T("Microsoft tarayıcıdan dönüşü kabul etmedi. Kodla girişe geçiliyor."), true
 	case "AADSTS7000218", "AADSTS700025": // public client flows disabled
-		return "Microsoft bu programın girişine izin vermiyor; program ayarlarında bir eksik var.", true
+		return i18n.T("Microsoft bu programın girişine izin vermiyor; program ayarlarında bir eksik var."), true
 	case "AADSTS50020", "AADSTS50194", "AADSTS9002331": // account type not allowed
-		return "Bu tür hesapla giriş şu an açık değil.", false
+		return i18n.T("Bu tür hesapla giriş şu an açık değil."), false
 	case "AADSTS65004", "AADSTS65001": // consent declined / required
-		return "İzin verilmedi. Giriş için tarayıcıda izin vermen gerekiyor.", false
+		return i18n.T("İzin verilmedi. Giriş için tarayıcıda izin vermen gerekiyor."), false
 	case "AADSTS70000", "AADSTS70008", "AADSTS700082", "AADSTS50173", "AADSTS50133":
-		return "Microsoft oturumunun süresi doldu; yeniden giriş yap.", false
+		return i18n.T("Microsoft oturumunun süresi doldu; yeniden giriş yap."), false
 	}
 	switch e.OAuth {
 	case "access_denied", "authorization_declined":
-		return "Giriş iptal edildi.", false
+		return i18n.T("Giriş iptal edildi."), false
 	case "expired_token":
-		return "Kodun süresi doldu; yeniden dene.", false
+		return i18n.T("Kodun süresi doldu; yeniden dene."), false
 	case "invalid_grant", "interaction_required", "login_required":
-		return "Microsoft oturumunun süresi doldu; yeniden giriş yap.", false
+		return i18n.T("Microsoft oturumunun süresi doldu; yeniden giriş yap."), false
 	case "invalid_client":
-		return "Microsoft bu programın girişine izin vermiyor; program ayarlarında bir eksik var.", true
+		return i18n.T("Microsoft bu programın girişine izin vermiyor; program ayarlarında bir eksik var."), true
 	}
-	return "Microsoft ile giriş tamamlanamadı. Tekrar dene.", false
+	return i18n.T("Microsoft ile giriş tamamlanamadı. Tekrar dene."), false
 }
 
 // TokenSourceFrom is TokenSource seeded with a token that is still valid,
@@ -444,7 +445,7 @@ func TokenSourceFrom(cfg *oauth2.Config, t *oauth2.Token, onRefresh func(string)
 // be renewed, so the user has to sign in again.
 func SessionExpired(err error) bool {
 	msg, _ := Friendly(err)
-	return strings.Contains(msg, "süresi doldu; yeniden giriş yap")
+	return strings.Contains(msg, i18n.T("süresi doldu; yeniden giriş yap"))
 }
 
 // msConsumersOff: the app registration does not allow personal accounts

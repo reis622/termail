@@ -57,9 +57,9 @@ func TestFolderRowsStableUnderNavigationAndRefresh(t *testing.T) {
 	}
 	// the screen shows each folder once too
 	v := ansi.Strip(m.View())
-	if n := strings.Count(v, unifiedTitle); n < 1 || n > 2 {
+	if n := strings.Count(v, unifiedTitle()); n < 1 || n > 2 {
 		// left panel, and the F1 chip in the account bar when several accounts exist
-		t.Fatalf("%q appears %d times on screen", unifiedTitle, n)
+		t.Fatalf("%q appears %d times on screen", unifiedTitle(), n)
 	}
 }
 

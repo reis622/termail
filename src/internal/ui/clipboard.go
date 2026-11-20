@@ -10,6 +10,7 @@ import (
 	"github.com/muesli/termenv"
 
 	"termail/internal/edit"
+	"termail/internal/i18n"
 	"termail/internal/toast"
 )
 
@@ -71,11 +72,11 @@ func (m *Model) dupPaste(text string, src pasteSrc) bool {
 func (m *Model) pasteInto(e *edit.Editor) tea.Cmd {
 	s, err := readClipboardFn()
 	if err != nil {
-		m.note(toast.Error, "Pano okunamadı.")
+		m.note(toast.Error, i18n.T("Pano okunamadı."))
 		return nil
 	}
 	if s == "" {
-		m.note(toast.Info, "Pano boş.")
+		m.note(toast.Info, i18n.T("Pano boş."))
 		return nil
 	}
 	if m.dupPaste(s, pasteKey) || m.justTyped(s) {
@@ -84,7 +85,7 @@ func (m *Model) pasteInto(e *edit.Editor) tea.Cmd {
 	m.pasteEcho = []rune(edit.Normalize(s, e.Kind))
 	m.echoUntil = m.opt.Now().Add(pasteDedupe)
 	if e.Insert(s) {
-		m.note(toast.Info, "Yapıştırılan metin çok uzundu; sığan kadarı alındı.")
+		m.note(toast.Info, i18n.T("Yapıştırılan metin çok uzundu; sığan kadarı alındı."))
 	}
 	return nil
 }
@@ -109,7 +110,7 @@ func (m *Model) note(kind toast.Kind, text string) {
 func (m *Model) copied(text, note string) {
 	copyTextFn(text)
 	if note == "" {
-		note = "Kopyalandı"
+		note = i18n.T("Kopyalandı")
 	}
 	m.note(toast.Success, note)
 }
@@ -130,7 +131,7 @@ func (m *Model) editKey(e *edit.Editor, k tea.KeyMsg) (bool, tea.Cmd) {
 	case r.Paste:
 		return true, m.pasteInto(e)
 	case r.Cut:
-		m.note(toast.Info, "Yapıştırılan metin çok uzundu; sığan kadarı alındı.")
+		m.note(toast.Info, i18n.T("Yapıştırılan metin çok uzundu; sığan kadarı alındı."))
 	}
 	return r.Handled, nil
 }

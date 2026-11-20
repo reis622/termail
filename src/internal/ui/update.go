@@ -15,6 +15,7 @@ import (
 
 	"termail/internal/backend"
 	"termail/internal/blocklist"
+	"termail/internal/i18n"
 	"termail/internal/toast"
 	"termail/internal/undo"
 )
@@ -121,7 +122,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.toastErr("undo", msg.err)
 			return m, nil
 		}
-		m.toastInfo(toast.Success, "", "Geri alındı")
+		m.toastInfo(toast.Success, "", i18n.T("Geri alındı"))
 		uid := msg.e.OrigUID
 		if msg.newUID != 0 {
 			m.retargetUID(msg.e.Account, msg.e.From, msg.e.OrigUID, msg.newUID)
@@ -169,14 +170,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.toastErr("delete folder", msg.err)
 			return m, m.loadFolders(msg.acct)
 		}
-		m.toastInfo(toast.Success, "", "Klasör silindi.")
+		m.toastInfo(toast.Success, "", i18n.T("Klasör silindi."))
 		return m, m.loadFolders(msg.acct)
 	case folderRenamedMsg:
 		if msg.err != nil {
 			m.toastErr("rename folder", msg.err)
 			return m, m.loadFolders(msg.acct)
 		}
-		m.toastInfo(toast.Success, "", "Klasör yeniden adlandırıldı.")
+		m.toastInfo(toast.Success, "", i18n.T("Klasör yeniden adlandırıldı."))
 		return m, m.loadFolders(msg.acct)
 	case copyDoneMsg:
 		return m, m.onCopyDone(msg)
@@ -249,7 +250,7 @@ func (m *Model) onFolders(msg foldersMsg) tea.Cmd {
 			// e.g. a changed password, or one saved with junk by an older
 			// version: signing in again with the same address replaces it
 			a.State = stNeedsLogin
-			a.Err += " Şifreyi yeniden girmek için + tuşuna bas ve aynı adresle giriş yap."
+			a.Err += i18n.T(" Şifreyi yeniden girmek için + tuşuna bas ve aynı adresle giriş yap.")
 		}
 		m.logErr("folders", msg.err)
 		return nil
@@ -559,8 +560,8 @@ func (m *Model) onMoveDone(d moveDoneMsg) tea.Cmd {
 func (m *Model) deleteMsg(ai int, folder string, e backend.Envelope) tea.Cmd {
 	a := m.accts[ai]
 	if f := a.folder(folder); f != nil && f.Role == backend.RoleTrash {
-		m.confirm = &confirmBox{title: "Kalıcı olarak sil", text: "“" + trimSubj(e.Subject) + "” kalıcı olarak silinsin mi? Bu işlem geri alınamaz.",
-			yes: "Sil", onYes: func() tea.Cmd {
+		m.confirm = &confirmBox{title: i18n.T("Kalıcı olarak sil"), text: "“" + trimSubj(e.Subject) + i18n.T("” kalıcı olarak silinsin mi? Bu işlem geri alınamaz."),
+			yes: i18n.T("Sil"), onYes: func() tea.Cmd {
 				m.removeEnv(ai, folder, e.UID)
 				m.toasts.MarkRead(ai, folder, e.UID)
 				b := a.B
@@ -578,13 +579,13 @@ func (m *Model) deleteMsg(ai int, folder string, e backend.Envelope) tea.Cmd {
 	}
 	trash := a.folderByRole(backend.RoleTrash)
 	if trash == "" {
-		m.toastInfo(toast.Error, "", "Çöp Kutusu bulunamadı.")
+		m.toastInfo(toast.Error, "", i18n.T("Çöp Kutusu bulunamadı."))
 		return nil
 	}
 	m.removeEnv(ai, folder, e.UID)
 	m.toasts.MarkRead(ai, folder, e.UID)
 	id := m.undo.Push(undo.Entry{Op: undo.OpDelete, Account: ai, From: folder, Trash: trash, OrigUID: e.UID, MessageID: e.MessageID, Subject: e.Subject, Data: e})
-	m.linkUndoToast(id, m.toasts.Push(toast.Deleted, "Silindi:", trimSubj(e.Subject), m.opt.Now(), 0))
+	m.linkUndoToast(id, m.toasts.Push(toast.Deleted, i18n.T("Silindi:"), trimSubj(e.Subject), m.opt.Now(), 0))
 	return tea.Batch(m.moveCmd(ai, folder, e, trash, "delete", id), m.previewCmd())
 }
 
@@ -615,7 +616,7 @@ func (m *Model) purgeMails(mails []backend.Envelope) tea.Cmd {
 	}
 	m.clampCursor()
 	if n > 0 {
-		m.toasts.Push(toast.Deleted, "Silindi:", fmt.Sprintf("%d ileti kalıcı olarak silindi", n), m.opt.Now(), 0)
+		m.toasts.Push(toast.Deleted, i18n.T("Silindi:"), i18n.Tf("%d ileti kalıcı olarak silindi", n), m.opt.Now(), 0)
 	}
 	cmds = append(cmds, m.previewCmd())
 	return tea.Batch(cmds...)
@@ -645,7 +646,7 @@ func (m *Model) undoLast() tea.Cmd {
 		if top.TrashUID != 0 {
 			m.removeEnv(top.Account, top.Trash, top.TrashUID)
 		}
-		m.toastInfo(toast.Success, "", "Geri alındı")
+		m.toastInfo(toast.Success, "", i18n.T("Geri alındı"))
 		return m.previewCmd()
 	}
 	if top, ok := m.undo.Peek(); ok && top.Pending {
@@ -658,17 +659,17 @@ func (m *Model) undoLast() tea.Cmd {
 			}
 			m.insertEnv(top.Account, from, p.env)
 			m.revealUndone(top.Account, from, p.env)
-			m.toastInfo(toast.Success, "", "Geri alındı")
+			m.toastInfo(toast.Success, "", i18n.T("Geri alındı"))
 			return m.previewCmd()
 		}
 	}
 	e, ok, pending := m.undo.Pop()
 	if pending {
-		m.toastInfo(toast.Info, "", "İşlem sürüyor, birazdan tekrar dene.")
+		m.toastInfo(toast.Info, "", i18n.T("İşlem sürüyor, birazdan tekrar dene."))
 		return nil
 	}
 	if !ok {
-		m.toastInfo(toast.Info, "", "Geri alınacak bir şey yok.")
+		m.toastInfo(toast.Info, "", i18n.T("Geri alınacak bir şey yok."))
 		return nil
 	}
 	m.dismissUndoToast(e.ID)
@@ -702,7 +703,7 @@ func (m *Model) undoLast() tea.Cmd {
 			}
 		}
 		if uid == 0 {
-			return undoDoneMsg{e: e, err: fmtErr("ileti bulunamadı")}
+			return undoDoneMsg{e: e, err: errors.New(i18n.T("ileti bulunamadı"))}
 		}
 		newUID, err := b.Move(ctx, dest, uid, e.From, e.MessageID)
 		return undoDoneMsg{e: e, err: err, newUID: newUID}
@@ -788,7 +789,7 @@ func (m *Model) undoFlag(e undo.Entry) tea.Cmd {
 				m.setSeenLocal(e.Account, e.From, env.UID, on)
 			}
 			m.revealUndone(e.Account, e.From, env)
-			m.toastInfo(toast.Success, "", "Geri alındı")
+			m.toastInfo(toast.Success, "", i18n.T("Geri alındı"))
 			return m.previewCmd()
 		}
 	}
@@ -798,7 +799,7 @@ func (m *Model) undoFlag(e undo.Entry) tea.Cmd {
 		m.setSeenLocal(e.Account, e.From, env.UID, on)
 	}
 	m.revealUndone(e.Account, e.From, env)
-	m.toastInfo(toast.Success, "", "Geri alındı")
+	m.toastInfo(toast.Success, "", i18n.T("Geri alındı"))
 	return tea.Batch(m.queueFlag(e.Account, e.From, env, backend.Flag(e.Flag), on), m.previewCmd())
 }
 
@@ -809,13 +810,13 @@ func (m *Model) archiveMsg(ai int, folder string, e backend.Envelope) tea.Cmd {
 		dest = a.folderByRole(backend.RoleAll)
 	}
 	if dest == "" || dest == folder {
-		m.toastInfo(toast.Error, "", "Arşiv klasörü bulunamadı.")
+		m.toastInfo(toast.Error, "", i18n.T("Arşiv klasörü bulunamadı."))
 		return nil
 	}
 	m.removeEnv(ai, folder, e.UID)
 	m.toasts.MarkRead(ai, folder, e.UID)
 	id := m.undo.Push(undo.Entry{Op: undo.OpMove, Account: ai, From: folder, Trash: dest, OrigUID: e.UID, MessageID: e.MessageID, Subject: e.Subject, Data: e})
-	m.linkUndoToast(id, m.toasts.Push(toast.Deleted, "Arşivlendi:", trimSubj(e.Subject), m.opt.Now(), 0))
+	m.linkUndoToast(id, m.toasts.Push(toast.Deleted, i18n.T("Arşivlendi:"), trimSubj(e.Subject), m.opt.Now(), 0))
 	return tea.Batch(m.moveCmd(ai, folder, e, dest, "archive", id), m.previewCmd())
 }
 
@@ -841,19 +842,19 @@ func (m *Model) ensureSpam(ai int, then func(name string) tea.Cmd) tea.Cmd {
 		}
 	}
 	b := a.B
-	a.Folders = append(a.Folders, backend.Folder{Name: "Spam", Role: backend.RoleJunk})
+	a.Folders = append(a.Folders, backend.Folder{Name: i18n.T("Spam"), Role: backend.RoleJunk})
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(m.ctx, 30*time.Second)
 		defer cancel()
-		err := b.CreateFolder(ctx, "Spam")
-		return folderCreatedMsg{acct: ai, name: "Spam", err: err, then: func() tea.Cmd { return then("Spam") }}
+		err := b.CreateFolder(ctx, i18n.T("Spam"))
+		return folderCreatedMsg{acct: ai, name: i18n.T("Spam"), err: err, then: func() tea.Cmd { return then(i18n.T("Spam")) }}
 	}
 }
 
 func (m *Model) blockSender(ai int, folder string, e backend.Envelope, kind blocklist.Kind) tea.Cmd {
 	a := m.accts[ai]
 	if e.FromAddr == "" || !strings.Contains(e.FromAddr, "@") {
-		m.toastInfo(toast.Error, "", "Gönderen adresi okunamadı.")
+		m.toastInfo(toast.Error, "", i18n.T("Gönderen adresi okunamadı."))
 		return nil
 	}
 	value := e.FromAddr
@@ -863,7 +864,7 @@ func (m *Model) blockSender(ai int, folder string, e backend.Envelope, kind bloc
 	entry, added := m.opt.Blocks.Add(a.Cfg.Email, kind, value, m.opt.Now())
 	m.saveBlocks()
 	if f := a.folder(folder); f != nil && f.Role == backend.RoleJunk {
-		m.toastInfo(toast.Success, "Engellendi:", entry.Display())
+		m.toastInfo(toast.Success, i18n.T("Engellendi:"), entry.Display())
 		return nil
 	}
 	m.removeEnv(ai, folder, e.UID)
@@ -871,7 +872,7 @@ func (m *Model) blockSender(ai int, folder string, e backend.Envelope, kind bloc
 	return m.ensureSpam(ai, func(spam string) tea.Cmd {
 		id := m.undo.Push(undo.Entry{Op: undo.OpBlock, Account: ai, From: folder, Trash: spam, OrigUID: e.UID, MessageID: e.MessageID,
 			Subject: e.Subject, Data: e, BlockAccount: a.Cfg.Email, BlockKind: string(kind), BlockValue: entry.Value, BlockAdded: added})
-		m.linkUndoToast(id, m.toasts.Push(toast.Deleted, "Engellendi:", entry.Display(), m.opt.Now(), 0))
+		m.linkUndoToast(id, m.toasts.Push(toast.Deleted, i18n.T("Engellendi:"), entry.Display(), m.opt.Now(), 0))
 		return tea.Batch(m.moveCmd(ai, folder, e, spam, "block", id), m.previewCmd())
 	})
 }

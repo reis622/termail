@@ -11,6 +11,7 @@ import (
 
 	"termail/internal/edit"
 	"termail/internal/grid"
+	"termail/internal/i18n"
 	"termail/internal/mailmsg"
 )
 
@@ -61,7 +62,7 @@ var sharedFileIndex *fileIndex
 
 func newAttachPicker() (*attachPicker, tea.Cmd) {
 	in := edit.New(edit.Single)
-	in.Placeholder = "yol yapıştır veya dosya adı yaz…"
+	in.Placeholder = i18n.T("yol yapıştır veya dosya adı yaz…")
 	start := ""
 	if home, err := os.UserHomeDir(); err == nil {
 		start = home + string(os.PathSeparator)
@@ -170,7 +171,7 @@ func (p *attachPicker) key(m *Model, c *composer, k tea.KeyMsg) tea.Cmd {
 			}
 			return p.add(c, e)
 		}
-		p.msg = "Dosya bulunamadı."
+		p.msg = i18n.T("Dosya bulunamadı.")
 		return nil
 	}
 	if p.pristine && k.Type == tea.KeyRunes && len(k.Runes) > 0 {
@@ -200,29 +201,29 @@ const maxAttach = 25 << 20
 func (p *attachPicker) add(c *composer, path string) tea.Cmd {
 	st, err := os.Stat(path)
 	if err != nil {
-		p.msg = "Dosya açılamadı."
+		p.msg = i18n.T("Dosya açılamadı.")
 		return nil
 	}
 	if st.Size() > maxAttach {
-		p.msg = "Dosya çok büyük (en fazla 25 MB)."
+		p.msg = i18n.T("Dosya çok büyük (en fazla 25 MB).")
 		return nil
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
-		p.msg = "Dosya okunamadı."
+		p.msg = i18n.T("Dosya okunamadı.")
 		return nil
 	}
 	c.atts = append(c.atts, mailmsg.Attachment{Name: filepath.Base(path), ContentType: mailmsg.TypeByName(path), Size: len(data), Data: data})
 	c.picker = nil
 	if mailmsg.Risky(filepath.Base(path), data) {
-		c.status, c.statusFG = filepath.Base(path)+" bir program dosyası; Gmail ve Outlook bu tür ekleri geri çevirir, ileti ulaşmaz.", cYellow
+		c.status, c.statusFG = filepath.Base(path)+i18n.T(" bir program dosyası; Gmail ve Outlook bu tür ekleri geri çevirir, ileti ulaşmaz."), cYellow
 	}
 	return c.applyFocus()
 }
 
 func (p *attachPicker) goDir(path string) {
 	if !dirExists(path) {
-		p.msg = "Klasör açılamadı."
+		p.msg = i18n.T("Klasör açılamadı.")
 		return
 	}
 	p.in.SetValue(path + string(os.PathSeparator))
@@ -243,7 +244,7 @@ func (p *attachPicker) draw(g *grid.Grid) {
 
 	// quick access row
 	qx, qy := x+3, y+2
-	g.Put(qx, qy, "Hızlı:", st(cFaint), 0)
+	g.Put(qx, qy, i18n.T("Hızlı:"), st(cFaint), 0)
 	qx += 7
 	for i, e := range p.quick {
 		lab := e.label
@@ -262,9 +263,9 @@ func (p *attachPicker) draw(g *grid.Grid) {
 	rows := h - 7
 	listTop := y + 4
 	if p.searching {
-		g.Put(x+3, y+3, "Arama sonuçları", st(cDim), w-6)
+		g.Put(x+3, y+3, i18n.T("Arama sonuçları"), st(cDim), w-6)
 	} else {
-		g.Put(x+3, y+3, "Dosyayı pencereye sürükleyip bırakabilir ya da yolunu yazabilirsin.", st(cFaint), w-6)
+		g.Put(x+3, y+3, i18n.T("Dosyayı pencereye sürükleyip bırakabilir ya da yolunu yazabilirsin."), st(cFaint), w-6)
 	}
 	start := 0
 	if p.cur >= rows {
@@ -290,13 +291,13 @@ func (p *attachPicker) draw(g *grid.Grid) {
 	if p.msg != "" {
 		g.Put(x+3, y+h-2, p.msg, st(cRed), w-6)
 	} else if p.searching && len(p.entries) == 0 {
-		hint := "Dizin taranıyor…"
+		hint := i18n.T("Dizin taranıyor…")
 		if p.idx != nil && p.idx.hasData() {
-			hint = "Eşleşen dosya yok."
+			hint = i18n.T("Eşleşen dosya yok.")
 		}
 		g.Put(x+3, y+h-2, hint, st(cFaint), w-6)
 	}
-	keybar(g, g.H-1, []keyHint{{"Enter", "Ekle / klasöre gir"}, {"Tab", "Tamamla"}, {"↑↓", "Seç"}, {"Esc", "Vazgeç"}}, "", nil)
+	keybar(g, g.H-1, []keyHint{{"Enter", i18n.T("Ekle / klasöre gir")}, {"Tab", i18n.T("Tamamla")}, {"↑↓", i18n.T("Seç")}, {"Esc", i18n.T("Vazgeç")}}, "", nil)
 }
 
 func (p *attachPicker) addHits(m *Model, g *grid.Grid) {

@@ -15,6 +15,7 @@ import (
 	"github.com/zalando/go-keyring"
 
 	"termail/internal/discover"
+	"termail/internal/i18n"
 )
 
 // Account is one mailbox. It never contains a password or token.
@@ -40,6 +41,8 @@ type Config struct {
 	MSClientID string    `json:"microsoft_client_id,omitempty"`
 	// Mouse: "kapalı" turns the mouse off (default: on).
 	Mouse string `json:"fare,omitempty"`
+	// Language is "tr" or "en". Empty means auto-detect on start.
+	Language string `json:"language,omitempty"`
 }
 
 // MouseOn reports whether mouse support is wanted ("fare": "kapalı" turns
@@ -108,9 +111,21 @@ func (c *Config) Save() error {
 }
 
 // DefaultName picks a friendly unique account name.
+// SaveLanguage records the UI language in config.json without dropping
+// other settings (used when the language is switched from the help screen,
+// including demo mode).
+func SaveLanguage(lang string) error {
+	c, err := Load()
+	if err != nil {
+		return err
+	}
+	c.Language = lang
+	return c.Save()
+}
+
 func (c *Config) DefaultName(provider string) string {
 	if provider == "" {
-		provider = "Hesap"
+		provider = i18n.T("Hesap")
 	}
 	taken := map[string]bool{}
 	for _, a := range c.Accounts {

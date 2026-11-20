@@ -21,6 +21,7 @@ import (
 	"termail/internal/downloads"
 	"termail/internal/grid"
 	"termail/internal/htmltext"
+	"termail/internal/i18n"
 	"termail/internal/mailmsg"
 	"termail/internal/toast"
 )
@@ -64,9 +65,9 @@ func tabsTitle(p *mailmsg.Parsed) string {
 		a, l, c = len(p.Attachments), len(p.Links), len(verifyCodes(p))
 	}
 	if c > 0 {
-		return fmt.Sprintf("Ekler ve Bağlantılar (%d · %d · %d kod)", a, l, c)
+		return i18n.Tf("Ekler ve Bağlantılar (%d · %d · %d kod)", a, l, c)
 	}
-	return fmt.Sprintf("Ekler ve Bağlantılar (%d · %d)", a, l)
+	return i18n.Tf("Ekler ve Bağlantılar (%d · %d)", a, l)
 }
 
 // attChip names the kind of an attachment and its chip colour.
@@ -81,7 +82,7 @@ func attChip(a mailmsg.Attachment) (string, string) {
 	case strings.HasPrefix(ct, "image/") || ext == "png" || ext == "jpg" || ext == "jpeg" || ext == "gif" || ext == "bmp" || ext == "webp":
 		return "Resim", cYellow
 	case ext == "zip" || ext == "rar" || ext == "7z" || ext == "tar" || ext == "gz" || strings.Contains(ct, "zip"):
-		return "Arşiv", cPurple
+		return i18n.T("Arşiv"), cPurple
 	case strings.HasPrefix(ct, "text/") || ext == "txt" || ext == "md" || ext == "log" || ext == "json" || ext == "xml" || ext == "ics":
 		return "Metin", cAccent
 	}
@@ -161,7 +162,7 @@ func sentenceBefore(text string, n int) string {
 func (r *reader) showAttTab(m *Model) {
 	p := m.body(r.key)
 	if p != nil && len(p.Attachments) == 0 && len(p.Links) == 0 && len(verifyCodes(p)) == 0 {
-		m.toastInfo(toast.Info, "", "Bu iletide ek ya da bağlantı yok.")
+		m.toastInfo(toast.Info, "", i18n.T("Bu iletide ek ya da bağlantı yok."))
 		return
 	}
 	r.attMode, r.sel, r.tabTop, r.showAtt = true, 0, 0, false
@@ -219,7 +220,7 @@ func (r *reader) attModeKey(m *Model, key string) (tea.Cmd, bool) {
 		case len(p.Links) == 0 && d < len(p.Attachments):
 			pick(d)
 		default:
-			m.toastInfo(toast.Info, "", "Bu numarada bağlantı yok.")
+			m.toastInfo(toast.Info, "", i18n.T("Bu numarada bağlantı yok."))
 		}
 	case "enter", "o", "v":
 		if n == 0 {
@@ -230,12 +231,12 @@ func (r *reader) attModeKey(m *Model, key string) (tea.Cmd, bool) {
 		if n > 0 && items[min(r.sel, n-1)].att >= 0 {
 			return r.saveAttachment(m), true
 		}
-		m.toastInfo(toast.Info, "", "Bağlantılar kaydedilmez; y ile adresini kopyalayabilirsin.")
+		m.toastInfo(toast.Info, "", i18n.T("Bağlantılar kaydedilmez; y ile adresini kopyalayabilirsin."))
 	case "y":
 		if n > 0 {
 			if it := items[min(r.sel, n-1)]; it.link >= 0 {
 				copyTextFn(p.Links[it.link].URL)
-				m.toastInfo(toast.Success, "", "Kopyalandı")
+				m.toastInfo(toast.Success, "", i18n.T("Kopyalandı"))
 			}
 		}
 	default:
@@ -268,7 +269,7 @@ func (m *Model) selectedKey() bodyKey {
 func (r *reader) openItem(m *Model, p *mailmsg.Parsed, it tabItem) tea.Cmd {
 	if it.code != "" {
 		copyTextFn(it.code)
-		m.toastInfo(toast.Success, "", "Kod kopyalandı: "+it.code)
+		m.toastInfo(toast.Success, "", i18n.T("Kod kopyalandı: ")+it.code)
 		return nil
 	}
 	if it.link >= 0 {
@@ -295,16 +296,16 @@ type attOpenMsg struct {
 func (m *Model) openAttachment(a mailmsg.Attachment) tea.Cmd {
 	if riskyAttachment(a.Name) {
 		name := grid.Clean(a.Name)
-		m.confirm = &confirmBox{strict: true, title: "Program dosyası",
+		m.confirm = &confirmBox{strict: true, title: i18n.T("Program dosyası"),
 			text: "“" + name + "” bir program dosyası; açılırsa bilgisayarında çalışır. Yalnızca gönderene güveniyorsan aç.\n\nAçılsın mı? (e/h)",
-			yes:  "Evet, aç", onYes: func() tea.Cmd { return m.launchAttachment(a) }}
+			yes:  i18n.T("Evet, aç"), onYes: func() tea.Cmd { return m.launchAttachment(a) }}
 		return nil
 	}
 	return m.launchAttachment(a)
 }
 
 func (m *Model) launchAttachment(a mailmsg.Attachment) tea.Cmd {
-	m.toastInfo(toast.Info, "", "Açılıyor…")
+	m.toastInfo(toast.Info, "", i18n.T("Açılıyor…"))
 	return func() tea.Msg {
 		dir := attTempDir()
 		if err := os.MkdirAll(dir, 0o700); err != nil {
@@ -321,7 +322,7 @@ func (m *Model) launchAttachment(a mailmsg.Attachment) tea.Cmd {
 func (m *Model) onAttOpen(msg attOpenMsg) {
 	if msg.err != nil {
 		m.logErr("open attachment", msg.err)
-		m.toasts.Push(toast.Error, "", "Ek açılamadı; s ile İndirilenler'e kaydedip oradan açabilirsin.", m.opt.Now(), 6*time.Second)
+		m.toasts.Push(toast.Error, "", i18n.T("Ek açılamadı; s ile İndirilenler'e kaydedip oradan açabilirsin."), m.opt.Now(), 6*time.Second)
 	}
 }
 
@@ -330,7 +331,7 @@ func (m *Model) onAttOpen(msg attOpenMsg) {
 // drawReaderTabs draws "Mail  Ekler ve Bağlantılar (3 · 5)" and returns
 // the row under it.
 func (m *Model) drawReaderTabs(g *grid.Grid, x, y, w int, r *reader, p *mailmsg.Parsed) {
-	labels := []string{"Mail", tabsTitle(p)}
+	labels := []string{i18n.T("Mail"), tabsTitle(p)}
 	cx := x
 	for i, l := range labels {
 		on := i == 0 && !r.attMode || i == 1 && r.attMode
@@ -359,12 +360,12 @@ type tabRow struct {
 // drawAttTab draws the second tab between y and bottom (exclusive).
 func (m *Model) drawAttTab(g *grid.Grid, x, y, w, bottom int, r *reader, p *mailmsg.Parsed, focused bool) {
 	if p == nil {
-		g.Put(x, y, "Yükleniyor…", st(cFaint), w)
+		g.Put(x, y, i18n.T("Yükleniyor…"), st(cFaint), w)
 		return
 	}
 	items := tabItems(p)
 	if len(items) == 0 {
-		g.Put(x, y, "Bu iletide ek ya da bağlantı yok.", st(cFaint), w)
+		g.Put(x, y, i18n.T("Bu iletide ek ya da bağlantı yok."), st(cFaint), w)
 		return
 	}
 	r.sel = min(r.sel, len(items)-1)
@@ -387,7 +388,7 @@ func (m *Model) drawAttTab(g *grid.Grid, x, y, w, bottom int, r *reader, p *mail
 	}
 	codes := verifyCodes(p)
 	if len(codes) > 0 {
-		rows = append(rows, heading("Doğrulama kodu"))
+		rows = append(rows, heading(i18n.T("Doğrulama kodu")))
 		for i, c := range codes {
 			i, c := i, c
 			rows = append(rows, tabRow{item: i, draw: func(yy int, sel bool) {
@@ -401,7 +402,7 @@ func (m *Model) drawAttTab(g *grid.Grid, x, y, w, bottom int, r *reader, p *mail
 	}
 	attBase := len(codes)
 	if len(p.Attachments) > 0 {
-		rows = append(rows, heading("Ekler"))
+		rows = append(rows, heading(i18n.T("Ekler")))
 		for i, a := range p.Attachments {
 			i, a := i, a
 			rows = append(rows, tabRow{item: attBase + i, draw: func(yy int, sel bool) {
@@ -416,7 +417,7 @@ func (m *Model) drawAttTab(g *grid.Grid, x, y, w, bottom int, r *reader, p *mail
 		if it := items[r.sel]; it.att >= 0 {
 			a := p.Attachments[it.att]
 			rows = append(rows, blank, tabRow{item: -1, draw: func(yy int, _ bool) {
-				cx := g.Put(x, yy, "Önizleme", stb(cAccent), 0)
+				cx := g.Put(x, yy, i18n.T("Önizleme"), stb(cAccent), 0)
 				g.Put(cx, yy, "  ·  "+a.Name, stb(cAccent), max(1, x+w-cx))
 			}})
 			for _, pl := range r.previewLines(it.att, a, w, max(4, min(14, (bottom-y)/2))) {
@@ -427,7 +428,7 @@ func (m *Model) drawAttTab(g *grid.Grid, x, y, w, bottom int, r *reader, p *mail
 		rows = append(rows, blank)
 	}
 	if len(p.Links) > 0 {
-		rows = append(rows, heading("Bağlantılar"))
+		rows = append(rows, heading(i18n.T("Bağlantılar")))
 		nw := len(strconv.Itoa(len(p.Links))) + 2
 		for i, l := range p.Links {
 			i, l := i, l
@@ -454,7 +455,7 @@ func (m *Model) drawAttTab(g *grid.Grid, x, y, w, bottom int, r *reader, p *mail
 			}})
 			if warn {
 				rows = append(rows, tabRow{item: item, draw: func(yy int, _ bool) {
-					g.Put(x+nw+1, yy, "Dikkat: farklı adrese gidiyor", stb(cRed), max(1, w-nw-1))
+					g.Put(x+nw+1, yy, i18n.T("Dikkat: farklı adrese gidiyor"), stb(cRed), max(1, w-nw-1))
 				}})
 			}
 		}
@@ -531,15 +532,15 @@ func attPreview(a mailmsg.Attachment, w, h int) []prevLine {
 	note := func(s string) []prevLine { return []prevLine{{text: s, fg: cFaint}} }
 	switch {
 	case chip == "PDF":
-		return note("PDF önizlemesi yok, Enter ile aç.")
+		return note(i18n.T("PDF önizlemesi yok, Enter ile aç."))
 	case chip == "Resim":
 		if l := imagePreview(a.Data, w, h); l != nil {
 			return l
 		}
-		return note("Bu resim önizlenemiyor, Enter ile aç.")
+		return note(i18n.T("Bu resim önizlenemiyor, Enter ile aç."))
 	}
 	if len(a.Data) == 0 || bytes.IndexByte(a.Data, 0) >= 0 || !utf8.Valid(a.Data) {
-		return note("Önizleme yok; Enter ile aç, s ile kaydet.")
+		return note(i18n.T("Önizleme yok; Enter ile aç, s ile kaydet."))
 	}
 	text := strings.ReplaceAll(string(a.Data), "\r\n", "\n")
 	if ext == "csv" || strings.EqualFold(a.ContentType, "text/csv") {

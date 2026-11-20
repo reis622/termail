@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"golang.org/x/net/publicsuffix"
+	"termail/internal/i18n"
 )
 
 // Kind of a block entry.
@@ -34,7 +35,7 @@ type Entry struct {
 // Label is the user-facing kind name.
 func (e Entry) Label() string {
 	if e.Kind == Domain {
-		return "Alan adı"
+		return i18n.T("Alan adı")
 	}
 	return "Adres"
 }

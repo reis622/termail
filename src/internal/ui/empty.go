@@ -9,6 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"termail/internal/backend"
+	"termail/internal/i18n"
 	"termail/internal/toast"
 	"termail/internal/undo"
 )
@@ -91,8 +92,14 @@ func locativeKi(name string) string {
 
 // emptyQuestion is the confirmation text.
 func emptyQuestion(label string, n int) string {
+	if i18n.Get() == i18n.EN {
+		if n == 1 {
+			return i18n.Tf("%s 1 ileti kalıcı silinsin mi? e/h", label)
+		}
+		return i18n.Tf("%[1]s %[2]d iletinin hepsi kalıcı silinsin mi? e/h", label, n)
+	}
 	if n == 1 {
-		return fmt.Sprintf("%s 1 ileti kalıcı silinsin mi? e/h", locativeKi(label))
+		return i18n.Tf("%s 1 ileti kalıcı silinsin mi? e/h", locativeKi(label))
 	}
 	return fmt.Sprintf("%s %d iletinin hepsi kalıcı silinsin mi? e/h", locativeKi(label), n)
 }
@@ -108,11 +115,11 @@ func (m *Model) askEmpty() tea.Cmd {
 	}
 	f := a.folder(m.folder)
 	if !emptyable(f) {
-		m.toasts.Push(toast.Info, "", "Sadece Çöp Kutusu ve Spam'de", m.opt.Now(), 3*time.Second)
+		m.toasts.Push(toast.Info, "", i18n.T("Sadece Çöp Kutusu ve Spam'de"), m.opt.Now(), 3*time.Second)
 		return nil
 	}
 	if m.emptying != nil {
-		m.toastInfo(toast.Info, "", "Boşaltma sürüyor…")
+		m.toastInfo(toast.Info, "", i18n.T("Boşaltma sürüyor…"))
 		return nil
 	}
 	ai, folder, b := m.cur, f.Name, a.B
@@ -138,12 +145,12 @@ func (m *Model) onEmptyCount(msg emptyCountMsg) tea.Cmd {
 		label = strings.TrimSpace(f.Label())
 	}
 	if msg.n == 0 {
-		m.toasts.Push(toast.Info, "", label+" zaten boş.", m.opt.Now(), 3*time.Second)
+		m.toasts.Push(toast.Info, "", label+i18n.T(" zaten boş."), m.opt.Now(), 3*time.Second)
 		return nil
 	}
-	m.confirm = &confirmBox{strict: true, title: "Hepsini kalıcı sil",
+	m.confirm = &confirmBox{strict: true, title: i18n.T("Hepsini kalıcı sil"),
 		text: emptyQuestion(label, msg.n) + "\n\nBu işlem geri alınamaz.",
-		yes:  "Evet, hepsini sil", onYes: func() tea.Cmd { return m.startEmpty(msg.acct, msg.folder, msg.n) }}
+		yes:  i18n.T("Evet, hepsini sil"), onYes: func() tea.Cmd { return m.startEmpty(msg.acct, msg.folder, msg.n) }}
 	return nil
 }
 
@@ -182,7 +189,7 @@ func (m *Model) onEmptyDone(msg emptyDoneMsg) tea.Cmd {
 	a := m.accts[msg.acct]
 	if msg.err != nil {
 		m.logErr("empty", msg.err)
-		m.toasts.Push(toast.Error, "", "Boşaltılamadı: "+friendly(msg.err), m.opt.Now(), 6*time.Second)
+		m.toasts.Push(toast.Error, "", i18n.T("Boşaltılamadı: ")+friendly(msg.err), m.opt.Now(), 6*time.Second)
 		return m.loadList(msg.acct, msg.folder, false)
 	}
 	// deletes that could have been undone from here are gone for good
@@ -209,6 +216,6 @@ func (m *Model) onEmptyDone(msg emptyDoneMsg) tea.Cmd {
 	if f := a.folder(msg.folder); f != nil {
 		label = strings.TrimSpace(f.Label())
 	}
-	m.toasts.Push(toast.Success, "Boşaltıldı:", label, m.opt.Now(), 4*time.Second)
+	m.toasts.Push(toast.Success, i18n.T("Boşaltıldı:"), label, m.opt.Now(), 4*time.Second)
 	return tea.Batch(m.loadList(msg.acct, msg.folder, false), m.previewCmd())
 }

@@ -2,7 +2,7 @@ package ui
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"strings"
 	"time"
 	"unicode"
@@ -11,6 +11,7 @@ import (
 
 	"termail/internal/backend"
 	"termail/internal/edit"
+	"termail/internal/i18n"
 	"termail/internal/toast"
 	"termail/internal/undo"
 )
@@ -49,7 +50,7 @@ func (m *Model) customFolderAtCursor() (frow, bool) {
 
 func (m *Model) askDeleteFolder(r frow) tea.Cmd {
 	if r.kind != rowFolder || !r.custom {
-		m.toastInfo(toast.Info, "", "Sistem klasörleri silinemez.")
+		m.toastInfo(toast.Info, "", i18n.T("Sistem klasörleri silinemez."))
 		return nil
 	}
 	label := strings.TrimSpace(r.label)
@@ -57,9 +58,9 @@ func (m *Model) askDeleteFolder(r frow) tea.Cmd {
 		label = r.folder
 	}
 	m.confirm = &confirmBox{
-		title:  "Klasörü sil",
-		text:   fmt.Sprintf("\"%s\" klasörü ve içindeki tüm iletiler kalıcı olarak silinecek. Bu geri alınamaz.", label),
-		yes:    "Sil",
+		title:  i18n.T("Klasörü sil"),
+		text:   i18n.Tf("\"%s\" klasörü ve içindeki tüm iletiler kalıcı olarak silinecek. Bu geri alınamaz.", label),
+		yes:    i18n.T("Sil"),
 		strict: true,
 		onYes:  func() tea.Cmd { return m.deleteFolder(r.acct, r.folder) },
 	}
@@ -96,7 +97,7 @@ func (m *Model) deleteFolder(ai int, name string) tea.Cmd {
 
 func (m *Model) startRenameFolder(r frow) tea.Cmd {
 	if r.kind != rowFolder || !r.custom {
-		m.toastInfo(toast.Info, "", "Sistem klasörleri yeniden adlandırılamaz.")
+		m.toastInfo(toast.Info, "", i18n.T("Sistem klasörleri yeniden adlandırılamaz."))
 		return nil
 	}
 	if r.acct < 0 || r.acct >= len(m.accts) {
@@ -120,7 +121,7 @@ func (m *Model) startNewFolderFor(ai int) tea.Cmd {
 	}
 	m.setOpen(ai, true)
 	in := edit.New(edit.Single)
-	in.Placeholder = "Klasör adı"
+	in.Placeholder = i18n.T("Klasör adı")
 	in.Focus()
 	m.newFolder = &newFolderBox{acct: ai, in: in}
 	m.focus = focusFolders
@@ -134,12 +135,12 @@ func (m *Model) commitRenameFolder() tea.Cmd {
 	}
 	name := strings.TrimSpace(nf.in.Value())
 	if name == "" {
-		m.toastInfo(toast.Info, "", "Bir klasör adı yaz.")
+		m.toastInfo(toast.Info, "", i18n.T("Bir klasör adı yaz."))
 		return nil
 	}
 	for _, r := range name {
 		if r < 32 || unicode.IsControl(r) {
-			m.toastInfo(toast.Error, "", "Klasör adı geçersiz.")
+			m.toastInfo(toast.Error, "", i18n.T("Klasör adı geçersiz."))
 			return nil
 		}
 	}
@@ -156,7 +157,7 @@ func (m *Model) commitRenameFolder() tea.Cmd {
 	a := m.accts[ai]
 	for _, f := range a.Folders {
 		if f.Name == name {
-			m.toastInfo(toast.Error, "", "Bu adda bir klasör zaten var.")
+			m.toastInfo(toast.Error, "", i18n.T("Bu adda bir klasör zaten var."))
 			return nil
 		}
 	}
@@ -206,7 +207,7 @@ func isUserFolder(f backend.Folder) bool {
 // copyToFolder copies a mail (IMAP COPY) and leaves the original in place.
 func (m *Model) copyToFolder(ai int, folder string, e backend.Envelope, dest, label string) tea.Cmd {
 	id := m.undo.Push(undo.Entry{Op: undo.OpCopy, Account: ai, From: folder, Trash: dest, OrigUID: e.UID, MessageID: e.MessageID, Subject: e.Subject, Data: e})
-	m.linkUndoToast(id, m.toasts.Push(toast.Deleted, "Kopyalandı:", strings.TrimSpace(label), m.opt.Now(), 0))
+	m.linkUndoToast(id, m.toasts.Push(toast.Deleted, i18n.T("Kopyalandı:"), strings.TrimSpace(label), m.opt.Now(), 0))
 	c := e
 	c.UID = placeholderUID(id)
 	m.insertEnv(ai, dest, c)
@@ -270,7 +271,7 @@ func (m *Model) undoCopy(e undo.Entry) tea.Cmd {
 			}
 		}
 		if uid == 0 {
-			return undoDoneMsg{e: e, err: fmtErr("ileti bulunamadı")}
+			return undoDoneMsg{e: e, err: errors.New(i18n.T("ileti bulunamadı"))}
 		}
 		return undoDoneMsg{e: e, err: b.Delete(ctx, dest, uid)}
 	}

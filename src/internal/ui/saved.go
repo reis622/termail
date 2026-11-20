@@ -7,13 +7,14 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"termail/internal/backend"
+	"termail/internal/i18n"
 	"termail/internal/toast"
 )
 
 // "Kaydedilenler": mail saved for later = the server's \Flagged flag
 // (the same as the star in Gmail and the flag in Outlook).
 
-const savedTitle = "Kaydedilenler"
+func savedTitle() string { return i18n.T("Kaydedilenler") }
 
 type savedListMsg struct {
 	acct  int
@@ -120,7 +121,7 @@ func (m *Model) toggleSaved(ai int, folder string, e backend.Envelope) tea.Cmd {
 	if on {
 		m.toasts.Push(toast.Success, "", "Kaydedildi", m.opt.Now(), 3*time.Second)
 	} else {
-		m.toasts.Push(toast.Info, "", "Kayıt kaldırıldı", m.opt.Now(), 3*time.Second)
+		m.toasts.Push(toast.Info, "", i18n.T("Kayıt kaldırıldı"), m.opt.Now(), 3*time.Second)
 	}
 	return m.queueFlagUndo(ai, folder, e, backend.FlagFlagged, on)
 }
@@ -186,14 +187,14 @@ func (m *Model) onFlagDone(msg flagDoneMsg) tea.Cmd {
 		m.setFlaggedLocal(msg.acct, msg.folder, msg.env, !msg.on)
 		what := "Kaydedilemedi"
 		if !msg.on {
-			what = "Kayıt kaldırılamadı"
+			what = i18n.T("Kayıt kaldırılamadı")
 		}
 		m.toasts.Push(toast.Error, "", what+": "+friendly(msg.err), m.opt.Now(), 6*time.Second)
 	case backend.FlagSeen:
 		m.setSeenLocal(msg.acct, msg.folder, msg.env.UID, !msg.on)
-		what := "Okundu yapılamadı"
+		what := i18n.T("Okundu yapılamadı")
 		if !msg.on {
-			what = "Okunmadı yapılamadı"
+			what = i18n.T("Okunmadı yapılamadı")
 		}
 		m.toasts.Push(toast.Error, "", what+": "+friendly(msg.err), m.opt.Now(), 6*time.Second)
 	}

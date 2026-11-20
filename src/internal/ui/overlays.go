@@ -10,6 +10,7 @@ import (
 	"termail/internal/backend"
 	"termail/internal/blocklist"
 	"termail/internal/grid"
+	"termail/internal/i18n"
 	"termail/internal/mailmsg"
 	"termail/internal/toast"
 	"termail/internal/undo"
@@ -197,9 +198,9 @@ func (c *confirmBox) draw(m *Model, g *grid.Grid) {
 		addBtn(x1, bx, hitConfirmAlt)
 		x2 := bx + 4
 		bx = g.Put(x2, by, " Esc ", stbgb(cFG, cKey, true), 0)
-		bx = g.Put(bx+1, by, "Vazgeç", st(cDim), 0)
+		bx = g.Put(bx+1, by, i18n.T("Vazgeç"), st(cDim), 0)
 		addBtn(x2, bx, hitConfirmNo)
-		keybar(g, g.H-1, []keyHint{{"Enter", c.yes}, {strings.ToUpper(ak), c.alt}, {"Esc", "Vazgeç"}}, "", &m.hits)
+		keybar(g, g.H-1, []keyHint{{"Enter", c.yes}, {strings.ToUpper(ak), c.alt}, {"Esc", i18n.T("Vazgeç")}}, "", &m.hits)
 		return
 	}
 	if c.strict {
@@ -209,9 +210,9 @@ func (c *confirmBox) draw(m *Model, g *grid.Grid) {
 		addBtn(x0, bx, hitConfirmYes)
 		x1 := bx + 4
 		bx = g.Put(x1, by, " h / Esc ", stbgb(cBG, cAccent, true), 0)
-		bx = g.Put(bx+1, by, "Vazgeç", stb(cFG), 0)
+		bx = g.Put(bx+1, by, i18n.T("Vazgeç"), stb(cFG), 0)
 		addBtn(x1, bx, hitConfirmNo)
-		keybar(g, g.H-1, []keyHint{{"e", c.yes}, {"h / Esc", "Vazgeç"}}, "", &m.hits)
+		keybar(g, g.H-1, []keyHint{{"e", c.yes}, {"h / Esc", i18n.T("Vazgeç")}}, "", &m.hits)
 		return
 	}
 	x0 := x + 3
@@ -220,9 +221,9 @@ func (c *confirmBox) draw(m *Model, g *grid.Grid) {
 	addBtn(x0, bx, hitConfirmYes)
 	x1 := bx + 4
 	bx = g.Put(x1, by, " Esc ", stbgb(cFG, cKey, true), 0)
-	bx = g.Put(bx+1, by, "Vazgeç", st(cDim), 0)
+	bx = g.Put(bx+1, by, i18n.T("Vazgeç"), st(cDim), 0)
 	addBtn(x1, bx, hitConfirmNo)
-	keybar(g, g.H-1, []keyHint{{"Enter", c.yes}, {"Esc", "Vazgeç"}}, "", &m.hits)
+	keybar(g, g.H-1, []keyHint{{"Enter", c.yes}, {"Esc", i18n.T("Vazgeç")}}, "", &m.hits)
 }
 
 // ---- folder picker (m: move) ----
@@ -269,7 +270,7 @@ func (p *folderPicker) key(m *Model, key string) tea.Cmd {
 		m.removeEnv(p.acct, p.from, p.env.UID)
 		m.toasts.MarkRead(p.acct, p.from, p.env.UID)
 		id := m.undo.Push(undo.Entry{Op: undo.OpMove, Account: p.acct, From: p.from, Trash: dest.Name, OrigUID: p.env.UID, MessageID: p.env.MessageID, Subject: p.env.Subject, Data: p.env})
-		m.linkUndoToast(id, m.toasts.Push(toast.Deleted, "Taşındı:", strings.TrimSpace(dest.Label()), m.opt.Now(), 0))
+		m.linkUndoToast(id, m.toasts.Push(toast.Deleted, i18n.T("Taşındı:"), strings.TrimSpace(dest.Label()), m.opt.Now(), 0))
 		return tea.Batch(m.moveCmd(p.acct, p.from, p.env, dest.Name, "move", id), m.previewCmd())
 	}
 	return nil
@@ -279,7 +280,7 @@ func (p *folderPicker) draw(m *Model, g *grid.Grid) {
 	w := 40
 	h := min(len(p.folders)+4, g.H-6)
 	x, y := (g.W-w)/2, (g.H-h)/2
-	g.Box(x, y, w, h, cBorderF, cRaised, "Klasöre taşı", cAccent)
+	g.Box(x, y, w, h, cBorderF, cRaised, i18n.T("Klasöre taşı"), cAccent)
 	for i, f := range p.folders {
 		if i >= h-4 {
 			break
@@ -291,7 +292,7 @@ func (p *folderPicker) draw(m *Model, g *grid.Grid) {
 		g.Fill(x+1, y+2+i, w-2, 1, bg)
 		g.Put(x+3, y+2+i, strings.TrimSpace(f.Label()), stbgb(cFG, bg, i == p.cur), w-6)
 	}
-	keybar(g, g.H-1, []keyHint{{"↑↓", "Seç"}, {"Enter", "Taşı"}, {"Esc", "Vazgeç"}}, "", &m.hits)
+	keybar(g, g.H-1, []keyHint{{"↑↓", i18n.T("Seç")}, {"Enter", i18n.T("Taşı")}, {"Esc", i18n.T("Vazgeç")}}, "", &m.hits)
 }
 
 // ---- blocked senders screen (Ctrl+B) ----
@@ -316,7 +317,7 @@ func (b *blockScreen) key(m *Model, key string) tea.Cmd {
 			e := all[b.cur]
 			m.opt.Blocks.Remove(e.Account, e.Kind, e.Value)
 			m.saveBlocks()
-			m.toastInfo(toast.Success, "Engel kaldırıldı:", e.Display())
+			m.toastInfo(toast.Success, i18n.T("Engel kaldırıldı:"), e.Display())
 			if b.cur >= len(all)-1 && b.cur > 0 {
 				b.cur--
 			}
@@ -330,18 +331,18 @@ func (b *blockScreen) draw(m *Model, g *grid.Grid) {
 	w := min(100, g.W-4)
 	h := min(max(len(all)+8, 12), g.H-4)
 	x, y := (g.W-w)/2, (g.H-h)/2-1
-	g.Box(x, y, w, h, cBorderF, cPanel, "Engellenenler", cAccent)
+	g.Box(x, y, w, h, cBorderF, cPanel, i18n.T("Engellenenler"), cAccent)
 	g.RPut(x+w-3, y, " Ctrl+B veya Esc: kapat ", st(cDim))
-	g.Put(x+3, y+1, "Bu gönderenlerden gelen yeni postalar sessizce Spam klasörüne taşınır.", st(cFaint), w-6)
+	g.Put(x+3, y+1, i18n.T("Bu gönderenlerden gelen yeni postalar sessizce Spam klasörüne taşınır."), st(cFaint), w-6)
 	cols := []int{x + 3, x + 3 + 34, x + 3 + 34 + 12, x + 3 + 34 + 12 + 34}
 	hy := y + 3
-	g.Put(cols[0], hy, "Adres / alan adı", stb(cAccent), 0)
-	g.Put(cols[1], hy, "Tür", stb(cAccent), 0)
-	g.Put(cols[2], hy, "Hesap", stb(cAccent), 0)
-	g.Put(cols[3], hy, "Tarih", stb(cAccent), 0)
+	g.Put(cols[0], hy, i18n.T("Adres / alan adı"), stb(cAccent), 0)
+	g.Put(cols[1], hy, i18n.T("Tür"), stb(cAccent), 0)
+	g.Put(cols[2], hy, i18n.T("Hesap"), stb(cAccent), 0)
+	g.Put(cols[3], hy, i18n.T("Tarih"), stb(cAccent), 0)
 	g.Put(x+3, hy+1, strings.Repeat("─", w-6), st(cBorder), 0)
 	if len(all) == 0 {
-		g.Put(x+3, hy+3, "Henüz kimseyi engellemedin. Listede bir iletide b (adres) veya B (alan adı) ile engelleyebilirsin.", st(cDim), w-6)
+		g.Put(x+3, hy+3, i18n.T("Henüz kimseyi engellemedin. Listede bir iletide b (adres) veya B (alan adı) ile engelleyebilirsin."), st(cDim), w-6)
 	}
 	maxRows := h - 7
 	start := 0
@@ -365,7 +366,7 @@ func (b *blockScreen) draw(m *Model, g *grid.Grid) {
 		g.Put(cols[2], ry, m.accountName(e.Account), grid.Style{FG: cDim, BG: bg}, 32)
 		g.Put(cols[3], ry, mailmsg.ShortDay(e.Added), grid.Style{FG: cDim, BG: bg}, x+w-2-cols[3])
 	}
-	keybar(g, g.H-1, []keyHint{{"↑↓", "Seç"}, {"Enter / x", "Engeli kaldır"}, {"Esc", "Kapat"}}, "", &m.hits)
+	keybar(g, g.H-1, []keyHint{{"↑↓", i18n.T("Seç")}, {"Enter / x", i18n.T("Engeli kaldır")}, {"Esc", i18n.T("Kapat")}}, "", &m.hits)
 }
 
 func (m *Model) accountName(email string) string {
@@ -384,22 +385,22 @@ func (m *Model) drawHelp(g *grid.Grid) {
 	dw := min(124, g.W-4)
 	dh := min(36, g.H-3)
 	dx, dy := (g.W-dw)/2, max(0, (g.H-dh)/2-1)
-	g.Box(dx, dy, dw, dh, cBorderF, cPanel, "Kısayollar", cAccent)
+	g.Box(dx, dy, dw, dh, cBorderF, cPanel, i18n.T("Kısayollar"), cAccent)
 	g.RPut(dx+dw-3, dy, " ? veya Esc: kapat ", st(cDim))
 	type grp struct {
 		head  string
 		items [][2]string
 	}
 	cols := [][]grp{
-		{{"Gezinme", [][2]string{{"↑ ↓", "Gez (sağda önizlenir)"}, {"Enter / →", "İletiye gir (grup başlığında → genişletir)"}, {"o", "Tarayıcıda aç"}, {"t", "Sekmede aç (çift tık ile aynı)"}, {"←", "Klasör paneli (→ ile listeye dön)"}, {"Shift+G", "Gönderene göre grupla / düz (her panelden)"}, {"d", "Grup başlığında o gönderenin tüm maillerini sil"}, {"m", "Çöp'te grup başlığında tümünü Gelen Kutusu'na geri yükle"}, {"→ / ←", "Grubu, hesabı aç / kapat"}, {"Tab", "Sonraki sekme"}, {"Alt+1-9", "Sekmeye git"}, {"Ctrl+W", "Sekmeyi kapat"}}},
-			{"Arama", [][2]string{{"/ · Ctrl+F", "Ara (yazdıkça süzülür)"}, {"Tab", "Bu klasör / tüm klasörler / hesaplar"}, {"kimden: ekli", "okunmamış kaydedilen bugün dün bu hafta bu ay"}, {"Esc", "Temizle, sonra kapat"}}},
-			{"İletinin içinde", [][2]string{{"↑↓ PgUp/Dn", "Kaydır"}, {"] / [", "Sonraki / önceki ileti (okundu işaretler)"}, {"Enter", "Yanıtla (yeni sekme)"}, {"Esc", "Listeye dön"}, {"e", "Mail ↔ Ekler ve Bağlantılar sekmesi"}, {"Shift+E", "İletiyi doğrudan Ekler'de aç"}, {"↑ ↓ / 1-9", "(Ekler) satır seç / bağlantı no"}, {"Enter", "(Ekler) aç: bağlantı tarayıcıda, ek kendi programında"}, {"s", "Eki İndirilenler'e kaydet"}, {"Esc", "(Ekler) Mail sekmesine dön"}, {"c", "Metnin tamamını kopyala"}, {"C", "Gönderenin adresini kopyala"}, {"w", "Bağlantılar: aç / kopyala"}, {"k", "Sonraya kaydet"}}}},
-		{{"İleti", [][2]string{{"n", "Yeni ileti"}, {"r", "Yanıtla"}, {"a / R", "Tümüne yanıtla"}, {"f", "İlet"}, {"k", "Sonraya kaydet / kaldır"}, {"e", "Ekler"}, {"d / Delete", "Çöpe at (Çöp'te: kalıcı)"}, {"Shift+D", "Çöp/Spam'i boşalt · diğer klasörler: hepsi çöpe"}, {"u", "Geri al"}, {"i", "Okundu / okunmadı (Okunanlar'a geçer)"}, {"m", "Klasöre taşı"}, {"b / B", "Engelle: kişi / alan adı"}}},
-			{"Hesaplar", [][2]string{{"F2-F12", "Hesaba geç (F2 = 1. hesap)"}, {"F1", "Tüm Gelen Kutuları"}, {"Ctrl+A", "Hesap seçici (yazarken değil)"}, {"Alt+N", "Hesap satırında yeni klasör"}, {"+", "Hesap ekle"}}},
-			{"Genel", [][2]string{{"g / x", "Bildirim: göster / kapat"}, {"Ctrl+B", "Engellenenler"}, {"?", "Bu ekran"}, {"q / Ctrl+C", "Çıkış (Ctrl+C: seçim yoksa)"}}}},
-		{{"Yazarken", [][2]string{{"Ctrl+S", "Gönder (arka planda)"}, {"Tab / Shift+Tab", "Sonraki / önceki alan"}, {"↑ ↓", "Alanlar arası (metinde ilk/son satırda)"}, {"Ctrl+↑ / Ctrl+↓", "Önceki / sonraki alan (yedek)"}, {"Ctrl+F", "Gönderen hesabı"}, {"Ctrl+E", "Ek ekle"}, {"Esc", "Kapat (taslak sorulur)"}, {"Ctrl+K", "Gönderen hesabı değiştir"}}},
-			{"Kopyala / yapıştır", [][2]string{{"Shift+oklar", "Seç (Shift+Home / End da)"}, {"Ctrl+A", "Alandaki her şeyi seç"}, {"Ctrl+C", "Seçileni kopyala (çıkmaz)"}, {"Ctrl+X", "Seçileni kes"}, {"Ctrl+V", "Yapıştır"}, {"Ctrl+Z / Y", "Geri al / yinele"}}},
-			{"Fare", [][2]string{{"Tıkla", "Seç (çift tık: sekmede)"}, {"Okuma başlığı", "Tıkla: iletiye gir"}, {"Tekerlek", "Listeyi / metni kaydır"}, {"Sürükle", "Metni seç: bırakınca kopyalanır"}, {"2 / 3 tık", "Kelime / paragraf seç"}, {"Sağ tık", "Metinde kopyala, alanda yapıştır"}}}},
+		{{i18n.T("Gezinme"), [][2]string{{"↑ ↓", i18n.T("Gez (sağda önizlenir)")}, {"Enter / →", i18n.T("İletiye gir (grup başlığında → genişletir)")}, {"o", i18n.T("Tarayıcıda aç")}, {"t", i18n.T("Sekmede aç (çift tık ile aynı)")}, {"←", i18n.T("Klasör paneli (→ ile listeye dön)")}, {"Shift+G", i18n.T("Gönderene göre grupla / düz (her panelden)")}, {"d", i18n.T("Grup başlığında o gönderenin tüm maillerini sil")}, {"m", i18n.T("Çöp'te grup başlığında tümünü Gelen Kutusu'na geri yükle")}, {"→ / ←", i18n.T("Grubu, hesabı aç / kapat")}, {"Tab", "Sonraki sekme"}, {"Alt+1-9", "Sekmeye git"}, {"Ctrl+W", "Sekmeyi kapat"}}},
+			{i18n.T("Arama"), [][2]string{{"/ · Ctrl+F", i18n.T("Ara (yazdıkça süzülür)")}, {"Tab", i18n.T("Bu klasör / tüm klasörler / hesaplar")}, {"kimden: ekli", i18n.T("okunmamış kaydedilen bugün dün bu hafta bu ay")}, {"Esc", "Temizle, sonra kapat"}}},
+			{i18n.T("İletinin içinde"), [][2]string{{"↑↓ PgUp/Dn", i18n.T("Kaydır")}, {"] / [", i18n.T("Sonraki / önceki ileti (okundu işaretler)")}, {"Enter", i18n.T("Yanıtla (yeni sekme)")}, {"Esc", i18n.T("Listeye dön")}, {"e", i18n.T("Mail ↔ Ekler ve Bağlantılar sekmesi")}, {"Shift+E", i18n.T("İletiyi doğrudan Ekler'de aç")}, {"↑ ↓ / 1-9", i18n.T("(Ekler) satır seç / bağlantı no")}, {"Enter", i18n.T("(Ekler) aç: bağlantı tarayıcıda, ek kendi programında")}, {"s", i18n.T("Eki İndirilenler'e kaydet")}, {"Esc", i18n.T("(Ekler) Mail sekmesine dön")}, {"c", i18n.T("Metnin tamamını kopyala")}, {"C", i18n.T("Gönderenin adresini kopyala")}, {"w", i18n.T("Bağlantılar: aç / kopyala")}, {"k", "Sonraya kaydet"}}}},
+		{{i18n.T("İleti"), [][2]string{{"n", i18n.T("Yeni ileti")}, {"r", i18n.T("Yanıtla")}, {"a / R", i18n.T("Tümüne yanıtla")}, {"f", i18n.T("İlet")}, {"k", i18n.T("Sonraya kaydet / kaldır")}, {"e", i18n.T("Ekler")}, {"d / Delete", i18n.T("Çöpe at (Çöp'te: kalıcı)")}, {"Shift+D", i18n.T("Çöp/Spam'i boşalt · diğer klasörler: hepsi çöpe")}, {"u", i18n.T("Geri al")}, {"i", i18n.T("Okundu / okunmadı (Okunanlar'a geçer)")}, {"m", i18n.T("Klasöre taşı")}, {"b / B", i18n.T("Engelle: kişi / alan adı")}}},
+			{i18n.T("Hesaplar"), [][2]string{{"F2-F12", i18n.T("Hesaba geç (F2 = 1. hesap)")}, {"F1", i18n.T("Tüm Gelen Kutuları")}, {"Ctrl+A", i18n.T("Hesap seçici (yazarken değil)")}, {"Alt+N", i18n.T("Hesap satırında yeni klasör")}, {"+", i18n.T("Hesap ekle")}}},
+			{i18n.T("Genel"), [][2]string{{"g / x", i18n.T("Bildirim: göster / kapat")}, {"Ctrl+B", i18n.T("Engellenenler")}, {"L", "Dil / Language"}, {"?", "Bu ekran"}, {"q / Ctrl+C", i18n.T("Çıkış (Ctrl+C: seçim yoksa)")}}}},
+		{{i18n.T("Yazarken"), [][2]string{{"Ctrl+S", i18n.T("Gönder (arka planda)")}, {"Tab / Shift+Tab", i18n.T("Sonraki / önceki alan")}, {"↑ ↓", i18n.T("Alanlar arası (metinde ilk/son satırda)")}, {"Ctrl+↑ / Ctrl+↓", i18n.T("Önceki / sonraki alan (yedek)")}, {"Ctrl+F", i18n.T("Gönderen hesabı")}, {"Ctrl+E", "Ek ekle"}, {"Esc", i18n.T("Kapat (taslak sorulur)")}, {"Ctrl+K", i18n.T("Gönderen hesabı değiştir")}}},
+			{i18n.T("Kopyala / yapıştır"), [][2]string{{"Shift+oklar", i18n.T("Seç (Shift+Home / End da)")}, {"Ctrl+A", i18n.T("Alandaki her şeyi seç")}, {"Ctrl+C", i18n.T("Seçileni kopyala (çıkmaz)")}, {"Ctrl+X", i18n.T("Seçileni kes")}, {"Ctrl+V", i18n.T("Yapıştır")}, {"Ctrl+Z / Y", "Geri al / yinele"}}},
+			{i18n.T("Fare"), [][2]string{{i18n.T("Tıkla"), i18n.T("Seç (çift tık: sekmede)")}, {i18n.T("Okuma başlığı"), i18n.T("Tıkla: iletiye gir")}, {i18n.T("Tekerlek"), i18n.T("Listeyi / metni kaydır")}, {i18n.T("Sürükle"), i18n.T("Metni seç: bırakınca kopyalanır")}, {i18n.T("2 / 3 tık"), i18n.T("Kelime / paragraf seç")}, {i18n.T("Sağ tık"), i18n.T("Metinde kopyala, alanda yapıştır")}}}},
 	}
 	cw := (dw - 6) / 3
 	for ci, groups := range cols {
@@ -425,8 +426,13 @@ func (m *Model) drawHelp(g *grid.Grid) {
 		}
 	}
 	// Console fonts make O/0, S/5, B/8 look alike: say which are letters.
-	g.Put(dx+3, dy+dh-2, "Ctrl ile basılanlar harftir (Ctrl+S: S harfi, Ctrl+B: B harfi, Ctrl+A: A harfi); Alt+1-9 ve 0-9 rakamdır.", st(cFaint), dw-6)
-	keybar(g, g.H-1, []keyHint{{"?", "Kapat"}, {"Esc", "Kapat"}}, "", &m.hits)
+	lang := "L  Dil: Türkçe  →  English"
+	if i18n.Get() == i18n.EN {
+		lang = "L  Language: English  →  Türkçe"
+	}
+	g.Put(dx+3, dy+dh-3, lang, stb(cAccent), dw-6)
+	g.Put(dx+3, dy+dh-2, i18n.T("Ctrl ile basılanlar harftir (Ctrl+S: S harfi, Ctrl+B: B harfi, Ctrl+A: A harfi); Alt+1-9 ve 0-9 rakamdır."), st(cFaint), dw-6)
+	keybar(g, g.H-1, []keyHint{{"L", i18n.T("Dil")}, {"?", i18n.T("Kapat")}, {"Esc", i18n.T("Kapat")}}, "", &m.hits)
 }
 
 var _ = fmt.Sprint

@@ -9,6 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"termail/internal/backend"
+	"termail/internal/i18n"
 	"termail/internal/toast"
 )
 
@@ -46,7 +47,10 @@ type bulkGroup struct {
 
 // bulkQuestion is the confirmation text.
 func bulkQuestion(view string, n int) string {
-	loc := map[string]string{"Gelen Kutusu": "Gelen Kutusu'ndaki", unifiedTitle: "Tüm Gelen Kutuları'ndaki", readTitle: "Okunanlar'daki"}[view]
+	if i18n.Get() == i18n.EN {
+		return i18n.Tf("%[1]s %[2]d iletinin TAMAMI silinecek. Emin misin? (e/h)", view, n)
+	}
+	loc := map[string]string{i18n.T("Gelen Kutusu"): i18n.T("Gelen Kutusu'ndaki"), unifiedTitle(): i18n.T("Tüm Gelen Kutuları'ndaki"), readTitle(): i18n.T("Okunanlar'daki"), savedTitle(): i18n.T("Kaydedilenler'deki")}[view]
 	if loc == "" {
 		loc = locativeKi(view)
 	}
@@ -56,11 +60,11 @@ func bulkQuestion(view string, n int) string {
 func (m *Model) bulkViewName() string {
 	switch {
 	case m.virt == viewUnified && m.readView:
-		return readTitle
+		return readTitle()
 	case m.virt == viewUnified:
-		return unifiedTitle
+		return unifiedTitle()
 	case m.virt == viewSaved:
-		return savedTitle
+		return savedTitle()
 	}
 	if a := m.acct(); a != nil {
 		if f := a.folder(m.folder); f != nil {
@@ -72,13 +76,13 @@ func (m *Model) bulkViewName() string {
 	if m.folder != "" {
 		return m.folder
 	}
-	return "Klasör"
+	return i18n.T("Klasör")
 }
 
 // askBulkDelete handles Shift+D in an inbox view.
 func (m *Model) askBulkDelete() tea.Cmd {
 	if m.bulk != nil && m.bulk.done+m.bulk.failed < m.bulk.total {
-		m.toastInfo(toast.Info, "", "Silme sürüyor…")
+		m.toastInfo(toast.Info, "", i18n.T("Silme sürüyor…"))
 		return nil
 	}
 	var groups []bulkGroup
@@ -98,7 +102,7 @@ func (m *Model) askBulkDelete() tea.Cmd {
 	}
 	view := m.bulkViewName()
 	if len(groups) == 0 {
-		m.toasts.Push(toast.Info, "", view+" zaten boş.", m.opt.Now(), 3*time.Second)
+		m.toasts.Push(toast.Info, "", view+i18n.T(" zaten boş."), m.opt.Now(), 3*time.Second)
 		return nil
 	}
 	n := 0
@@ -106,11 +110,11 @@ func (m *Model) askBulkDelete() tea.Cmd {
 	for _, g := range groups {
 		a := m.accts[g.acct]
 		if g.trash == "" {
-			m.toastInfo(toast.Error, "", a.Cfg.Email+": Çöp Kutusu bulunamadı, hiçbir şey silinmedi.")
+			m.toastInfo(toast.Error, "", a.Cfg.Email+i18n.T(": Çöp Kutusu bulunamadı, hiçbir şey silinmedi."))
 			return nil
 		}
 		if a.B == nil {
-			m.toastInfo(toast.Error, "", a.Cfg.Email+" bağlı değil, hiçbir şey silinmedi.")
+			m.toastInfo(toast.Error, "", a.Cfg.Email+i18n.T(" bağlı değil, hiçbir şey silinmedi."))
 			return nil
 		}
 		n += len(g.envs)
@@ -122,7 +126,7 @@ func (m *Model) askBulkDelete() tea.Cmd {
 	}
 	text += "\n\nİletiler Çöp Kutusu'na taşınır, u ile geri alınabilir."
 	m.confirm = &confirmBox{strict: true, title: "Hepsini sil", text: text,
-		yes: "Evet, hepsini sil", onYes: func() tea.Cmd { return m.startBulkDelete(groups) }}
+		yes: i18n.T("Evet, hepsini sil"), onYes: func() tea.Cmd { return m.startBulkDelete(groups) }}
 	return nil
 }
 
@@ -141,7 +145,7 @@ func (m *Model) startBulkDelete(groups []bulkGroup) tea.Cmd {
 	}
 	label := fmt.Sprintf("Siliniyor 0/%d", b.total)
 	if b.restore {
-		label = fmt.Sprintf("Geri yükleniyor 0/%d", b.total)
+		label = i18n.Tf("Geri yükleniyor 0/%d", b.total)
 	}
 	b.toastID = m.toasts.Push(toast.Info, "", label, m.opt.Now(), 10*time.Minute)
 	m.bulk = b
@@ -170,7 +174,7 @@ func (m *Model) startBulkRestore(groups []bulkGroup) tea.Cmd {
 			b.total++
 		}
 	}
-	b.toastID = m.toasts.Push(toast.Info, "", fmt.Sprintf("Geri yükleniyor 0/%d", b.total), m.opt.Now(), 10*time.Minute)
+	b.toastID = m.toasts.Push(toast.Info, "", i18n.Tf("Geri yükleniyor 0/%d", b.total), m.opt.Now(), 10*time.Minute)
 	m.bulk = b
 	var cmds []tea.Cmd
 	for _, g := range groups {
@@ -215,7 +219,7 @@ func (m *Model) bulkProgress() {
 	if b.done+b.failed < b.total {
 		prog := "Siliniyor"
 		if b.restore {
-			prog = "Geri yükleniyor"
+			prog = i18n.T("Geri yükleniyor")
 		}
 		m.toasts.Update(b.toastID, "", fmt.Sprintf("%s %d/%d", prog, b.done+b.failed, b.total), now, 10*time.Minute)
 		return
@@ -223,16 +227,16 @@ func (m *Model) bulkProgress() {
 	m.toasts.Remove(b.toastID)
 	switch {
 	case b.done == 0:
-		m.toasts.Push(toast.Error, "", "Hiçbir ileti taşınamadı, hepsi yerinde.", now, 6*time.Second)
+		m.toasts.Push(toast.Error, "", i18n.T("Hiçbir ileti taşınamadı, hepsi yerinde."), now, 6*time.Second)
 		m.bulk = nil
 	case b.restore && b.failed > 0:
-		b.toastID = m.toasts.Push(toast.Deleted, "Geri yüklendi:", fmt.Sprintf("%d ileti Gelen Kutusu'nda, %d ileti taşınamadı (yerinde)", b.done, b.failed), now, 0)
+		b.toastID = m.toasts.Push(toast.Deleted, i18n.T("Geri yüklendi:"), i18n.Tf("%d ileti Gelen Kutusu'nda, %d ileti taşınamadı (yerinde)", b.done, b.failed), now, 0)
 	case b.restore:
-		b.toastID = m.toasts.Push(toast.Deleted, "Geri yüklendi:", fmt.Sprintf("%d ileti Gelen Kutusu'na taşındı", b.done), now, 0)
+		b.toastID = m.toasts.Push(toast.Deleted, i18n.T("Geri yüklendi:"), i18n.Tf("%d ileti Gelen Kutusu'na taşındı", b.done), now, 0)
 	case b.failed > 0:
-		b.toastID = m.toasts.Push(toast.Deleted, "Silindi:", fmt.Sprintf("%d ileti Çöp Kutusu'nda, %d ileti taşınamadı (yerinde)", b.done, b.failed), now, 0)
+		b.toastID = m.toasts.Push(toast.Deleted, i18n.T("Silindi:"), i18n.Tf("%d ileti Çöp Kutusu'nda, %d ileti taşınamadı (yerinde)", b.done, b.failed), now, 0)
 	default:
-		b.toastID = m.toasts.Push(toast.Deleted, "Silindi:", fmt.Sprintf("%d ileti Çöp Kutusu'na taşındı", b.done), now, 0)
+		b.toastID = m.toasts.Push(toast.Deleted, i18n.T("Silindi:"), i18n.Tf("%d ileti Çöp Kutusu'na taşındı", b.done), now, 0)
 	}
 }
 
@@ -258,7 +262,7 @@ type bulkUndoDoneMsg struct {
 func (m *Model) undoBulk() tea.Cmd {
 	b := m.bulk
 	if b.done+b.failed < b.total {
-		m.toastInfo(toast.Info, "", "İşlem sürüyor, birazdan tekrar dene.")
+		m.toastInfo(toast.Info, "", i18n.T("İşlem sürüyor, birazdan tekrar dene."))
 		return nil
 	}
 	m.bulk = nil
@@ -290,7 +294,7 @@ func (m *Model) undoBulk() tea.Cmd {
 	for k := range uids {
 		reload[k.acct] = append(reload[k.acct], k.from, k.trash)
 	}
-	m.toastInfo(toast.Success, "", fmt.Sprintf("Geri alınıyor: %d ileti", n))
+	m.toastInfo(toast.Success, "", i18n.Tf("Geri alınıyor: %d ileti", n))
 	accts := m.accts
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(m.ctx, 5*time.Minute)
@@ -329,7 +333,7 @@ func (m *Model) onBulkUndoDone(msg bulkUndoDoneMsg) tea.Cmd {
 	if msg.err != nil {
 		m.toastErr("bulk undo", msg.err)
 	} else {
-		m.toastInfo(toast.Success, "", fmt.Sprintf("Geri alındı: %d ileti", msg.n))
+		m.toastInfo(toast.Success, "", i18n.Tf("Geri alındı: %d ileti", msg.n))
 	}
 	var cmds []tea.Cmd
 	for ai, fs := range msg.accts {

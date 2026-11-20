@@ -9,6 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"termail/internal/backend"
+	"termail/internal/i18n"
 	"termail/internal/mailmsg"
 	"termail/internal/toast"
 )
@@ -47,11 +48,11 @@ func (m *Model) openInBrowser(ai int, folder string, e backend.Envelope) tea.Cmd
 		return m.openBrowserNow(ai, folder, env, p)
 	}
 	m.wantBrowser = &browserReq{key: k, env: env}
-	m.toasts.Push(toast.Info, "", "Mail yükleniyor, tarayıcıda açılacak...", m.opt.Now(), 8*time.Second)
+	m.toasts.Push(toast.Info, "", i18n.T("Mail yükleniyor, tarayıcıda açılacak..."), m.opt.Now(), 8*time.Second)
 	load := m.loadBody(k)
 	if load == nil && !m.loading[k] && m.body(k) == nil {
 		m.wantBrowser = nil
-		m.toasts.Push(toast.Error, "", "İleti yüklenemedi, tarayıcıda açılamadı.", m.opt.Now(), 6*time.Second)
+		m.toasts.Push(toast.Error, "", i18n.T("İleti yüklenemedi, tarayıcıda açılamadı."), m.opt.Now(), 6*time.Second)
 		return nil
 	}
 	return load
@@ -63,7 +64,7 @@ func (m *Model) openInBrowser(ai int, folder string, e backend.Envelope) tea.Cmd
 func (m *Model) openBrowserNow(ai int, folder string, e backend.Envelope, p *mailmsg.Parsed) tea.Cmd {
 	path, err := writeMailHTML(e, p)
 	if err != nil {
-		m.toasts.Push(toast.Error, "", "Tarayıcıda açılamadı: "+friendly(err), m.opt.Now(), 6*time.Second)
+		m.toasts.Push(toast.Error, "", i18n.T("Tarayıcıda açılamadı: ")+friendly(err), m.opt.Now(), 6*time.Second)
 		return nil
 	}
 	return func() tea.Msg {
@@ -74,11 +75,11 @@ func (m *Model) openBrowserNow(ai int, folder string, e backend.Envelope, p *mai
 func (m *Model) onOpenBrowserDone(msg openBrowserDone) tea.Cmd {
 	if msg.err != nil {
 		m.logErr("browser", msg.err)
-		m.toasts.Push(toast.Error, "", "Tarayıcıda açılamadı: "+friendly(msg.err), m.opt.Now(), 6*time.Second)
+		m.toasts.Push(toast.Error, "", i18n.T("Tarayıcıda açılamadı: ")+friendly(msg.err), m.opt.Now(), 6*time.Second)
 		m.clampCursor()
 		return nil
 	}
-	m.toastInfo(toast.Info, "", "Tarayıcıda açılıyor")
+	m.toastInfo(toast.Info, "", i18n.T("Tarayıcıda açılıyor"))
 	env := msg.env
 	env.Seen = true
 	cmd := m.markRead(msg.ai, msg.folder, msg.env.UID)
@@ -94,9 +95,9 @@ func (m *Model) flushWantBrowser(k bodyKey, p *mailmsg.Parsed, err error) tea.Cm
 	req := m.wantBrowser
 	m.wantBrowser = nil
 	if err != nil || p == nil {
-		msg := "İleti yüklenemedi, tarayıcıda açılamadı."
+		msg := i18n.T("İleti yüklenemedi, tarayıcıda açılamadı.")
 		if err != nil {
-			msg = "İleti yüklenemedi, tarayıcıda açılamadı: " + friendly(err)
+			msg = i18n.T("İleti yüklenemedi, tarayıcıda açılamadı: ") + friendly(err)
 		}
 		m.toasts.Push(toast.Error, "", msg, m.opt.Now(), 6*time.Second)
 		m.clampCursor()

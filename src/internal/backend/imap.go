@@ -48,9 +48,9 @@ type IMAP struct {
 	// changes (move, delete, flags); IDLE has its own connection (Watch).
 	main, body, ops, list, pref *session
 	// srch is used only for searches (see SearchCriteria).
-	srch *session
-	cacheMu  sync.Mutex
-	uidCache uidPageCache
+	srch       *session
+	cacheMu    sync.Mutex
+	uidCache   uidPageCache
 	syncMu     sync.Mutex
 	folderSync map[string]FolderSync
 	// smtp is a kept-open, signed-in outgoing connection (opened when a
@@ -413,6 +413,15 @@ func toEnvelope(m *imapclient.FetchMessageBuffer) Envelope {
 				e.From = e.FromAddr
 			}
 		}
+		if len(m.Envelope.To) > 0 {
+			a := m.Envelope.To[0]
+			e.ToAddr = a.Addr()
+			e.To = a.Name
+			if e.To == "" {
+				e.To = e.ToAddr
+			}
+		}
+		e.ToPeople = addressHay(m.Envelope.To) + " " + addressHay(m.Envelope.Cc)
 	}
 	for _, f := range m.Flags {
 		switch f {
@@ -1220,4 +1229,19 @@ func debugW(on bool) io.Writer {
 		return DebugOut
 	}
 	return nil
+}
+
+func addressHay(as []imap.Address) string {
+	var b strings.Builder
+	for _, a := range as {
+		if b.Len() > 0 {
+			b.WriteByte(' ')
+		}
+		if a.Name != "" {
+			b.WriteString(a.Name)
+			b.WriteByte(' ')
+		}
+		b.WriteString(a.Addr())
+	}
+	return strings.TrimSpace(b.String())
 }

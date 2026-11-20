@@ -17,6 +17,7 @@ import (
 	"github.com/emersion/go-message/mail"
 
 	"termail/internal/htmltext"
+	"termail/internal/i18n"
 )
 
 // Attachment is a file inside a message.
@@ -205,10 +206,10 @@ func parse(raw []byte, depth int) (*Parsed, error) {
 		}
 		sb.WriteString("──── İletilen ileti ────\n")
 		if len(ip.From) > 0 {
-			sb.WriteString("Kimden: " + Display(ip.From[0]) + "\n")
+			sb.WriteString(i18n.T("Kimden: ") + Display(ip.From[0]) + "\n")
 		}
 		if ip.Subject != "" {
-			sb.WriteString("Konu: " + ip.Subject + "\n")
+			sb.WriteString(i18n.T("Konu: ") + ip.Subject + "\n")
 		}
 		sb.WriteString("\n" + ip.Text)
 		text = sb.String()
@@ -418,7 +419,7 @@ var kisaAylar = []string{"Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu
 // LongDate: "14 Kasım 2026, 13:05".
 func LongDate(t time.Time) string {
 	t = t.Local()
-	return fmt.Sprintf("%d %s %d, %02d:%02d", t.Day(), aylar[t.Month()-1], t.Year(), t.Hour(), t.Minute())
+	return fmt.Sprintf("%d %s %d, %02d:%02d", t.Day(), i18n.T(aylar[t.Month()-1]), t.Year(), t.Hour(), t.Minute())
 }
 
 // ShortDate: "14:31" today, "Dün" yesterday, "12 Kas" otherwise ("12.11.2025" other years).
@@ -431,10 +432,10 @@ func ShortDate(t, now time.Time) string {
 	}
 	yest := now.AddDate(0, 0, -1)
 	if y, m, d := yest.Date(); y == y1 && m == m1 && d == d1 {
-		return "Dün"
+		return i18n.T("Dün")
 	}
 	if y1 == y2 {
-		return fmt.Sprintf("%d %s", d1, kisaAylar[m1-1])
+		return fmt.Sprintf("%d %s", d1, i18n.T(kisaAylar[m1-1]))
 	}
 	return fmt.Sprintf("%02d.%02d.%d", d1, int(m1), y1)
 }
@@ -475,7 +476,7 @@ func QuoteHeader(p *Parsed) string {
 	if len(p.From) > 0 {
 		who = Display(p.From[0])
 	}
-	return fmt.Sprintf("%s, %s tarihinde yazdı:", who, strings.Replace(LongDate(p.Date), ",", "", 1))
+	return i18n.Tf("%s, %s tarihinde yazdı:", who, strings.Replace(LongDate(p.Date), ",", "", 1))
 }
 
 // QuoteLines prefixes every line with "> ".
