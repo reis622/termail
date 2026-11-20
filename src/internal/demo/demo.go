@@ -1,0 +1,213 @@
+// Package demo provides offline sample accounts (termail --demo). Nothing
+// is sent anywhere and no settings or secrets are touched.
+package demo
+
+import (
+	"strconv"
+	"strings"
+	"time"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/emersion/go-message/mail"
+
+	"termail/internal/account"
+	"termail/internal/backend"
+	"termail/internal/discover"
+	"termail/internal/mailmsg"
+	"termail/internal/samplemail"
+	"termail/internal/ui"
+)
+
+type msg struct {
+	fromName, fromAddr, subject, body string
+	day                               int // days ago
+	hh, mm                            int
+	seen, flagged                     bool
+	att                               []mailmsg.Attachment
+	html                              bool
+}
+
+var stdFolders = []backend.Folder{
+	{Name: "INBOX", Role: backend.RoleInbox}, {Name: "Yıldızlı", Role: backend.RoleFlagged},
+	{Name: "Sent", Role: backend.RoleSent}, {Name: "Drafts", Role: backend.RoleDrafts},
+	{Name: "Archive", Role: backend.RoleArchive}, {Name: "Spam", Role: backend.RoleJunk},
+	{Name: "Trash", Role: backend.RoleTrash},
+}
+
+func at(now time.Time, day, hh, mm int) time.Time {
+	d := now.AddDate(0, 0, -day)
+	return time.Date(d.Year(), d.Month(), d.Day(), hh, mm, 0, 0, time.Local)
+}
+
+func pdf() []byte {
+	return []byte("%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj 3 0 obj<</Type/Page/MediaBox[0 0 200 200]/Parent 2 0 R>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n")
+}
+
+func add(mem *backend.Memory, folder, to string, now time.Time, m msg) uint32 {
+	o := &mailmsg.Outgoing{From: &mail.Address{Name: m.fromName, Address: m.fromAddr},
+		To: []*mail.Address{{Address: to}}, Subject: m.subject, Body: m.body, Attachments: m.att, Date: at(now, m.day, m.hh, m.mm)}
+	raw, _ := mailmsg.Build(o)
+	if m.html {
+		raw = []byte(strings.Replace(string(raw), "Content-Type: text/plain; charset=utf-8", "Content-Type: text/html; charset=utf-8", 1))
+	}
+	p, _ := mailmsg.Parse(raw)
+	env := backend.Envelope{From: m.fromName, FromAddr: m.fromAddr, Subject: m.subject, Date: o.Date, Seen: m.seen,
+		Flagged: m.flagged, Attach: len(m.att) > 0, MessageID: p.MessageID}
+	return mem.Add(folder, env, raw)
+}
+
+const turkcellBody = `Sayın Ahmet Yılmaz,
+
+0532 *** ** 47 numaralı hattınıza ait Kasım 2026
+faturanız oluşturulmuştur.
+
+  Fatura tutarı      :  349,90 TL
+  Son ödeme tarihi   :  28 Kasım 2026
+  Fatura dönemi      :  01.11.2026 – 30.11.2026
+
+Faturanızı ekteki dosyadan inceleyebilir, otomatik
+ödeme talimatı verdiyseniz herhangi bir işlem
+yapmanıza gerek yoktur.
+
+Bizi tercih ettiğiniz için teşekkür ederiz.
+
+Turkcell Müşteri Hizmetleri`
+
+// linksBody is a phishing-style mail with several kinds of links (for the
+// link list: numbered markers, a shortened long address, a mismatched link,
+// a tracking pixel that is skipped).
+const linksBody = `<p>Sayın müşterimiz,</p>
+<p>Hesabınızda olağan dışı bir işlem tespit edildi. Lütfen <a href="https://garanti-dogrulama.xyz/giris?id=88412">https://www.garantibbva.com.tr</a> adresinden bilgilerinizi doğrulayın.</p>
+<p>Kampanyalar için <a href="https://www.garantibbva.com.tr/kampanyalar">kampanyalar sayfasına</a> göz atın. Şubeler: https://www.garantibbva.com.tr/subeler</p>
+<p>Kargo takibi: https://kargotakip.example.com.tr/sorgula?takipNo=7340012345678&amp;musteri=ahmet.yilmaz&amp;kaynak=eposta&amp;dil=tr</p>
+<p>Bize yazın: <a href="mailto:destek@garantibbva.com.tr">destek@garantibbva.com.tr</a> · <a href="https://www.garantibbva.com.tr/kampanyalar">kampanyalar</a></p>
+<p><a href="javascript:void(0)">Yazdır</a> · <a href="https://t.reklam-izleme.com/c/9f8e7d6c?u=ahmet">Abonelikten çık</a></p>
+<img src="https://t.reklam-izleme.com/o.gif" width="1" height="1">`
+
+// Accounts builds the three sample accounts from the approved previews.
+func Accounts(now time.Time) ([]*ui.Acct, map[string]*backend.Memory) {
+	mems := map[string]*backend.Memory{}
+	// Kişisel · Gmail
+	k := backend.NewMemory(append(append([]backend.Folder{}, stdFolders...), backend.Folder{Name: "Aile"}, backend.Folder{Name: "Faturalar"}))
+	me := "ahmet.yilmaz@gmail.com"
+	for _, m := range []msg{
+		{fromName: "Hepsiburada", fromAddr: "bilgi@hepsiburada.com", subject: "Favorinizde indirim var", body: "Favori listenizdeki ürünlerde indirim başladı.", day: 9, hh: 10, seen: true},
+		{fromName: "Fırsat Dünyası", fromAddr: "kampanya@bulten.reklam.com", subject: "Sadece bugün %70 indirim!", body: "<p>Kaçırmayın! <a href=\"https://reklam.com/x\">Hemen alışveriş yapın</a></p><img src=\"https://reklam.com/pixel.gif\">", day: 8, hh: 9, seen: true, html: true},
+		{fromName: "Selin Aydın", fromAddr: "selin.aydin@gmail.com", subject: "Teşekkürler!", body: "Hediye için çok teşekkürler Ahmet!", day: 8, hh: 18, seen: true},
+		{fromName: "LinkedIn", fromAddr: "bildirim@linkedin.com", subject: "Profilinizi 12 kişi görüntüledi", body: "Bu hafta profiliniz 12 kez görüntülendi.", day: 7, hh: 8, seen: true},
+		{fromName: "Burak Yıldız", fromAddr: "burak.yildiz@gmail.com", subject: "Sunum dosyası", body: "Sunumu ekte bulabilirsin.", day: 7, hh: 15, seen: true, flagged: true, att: []mailmsg.Attachment{{Name: "sunum.pdf", Data: pdf()}}},
+		{fromName: "Udemy", fromAddr: "no-reply@udemy.com", subject: "Kursunuza yeni bölüm eklendi", body: "Go ile Terminal Uygulamaları kursuna yeni bölüm eklendi.", day: 6, hh: 12, seen: true},
+		{fromName: "Elif Şahin", fromAddr: "elif.sahin@gmail.com", subject: "Re: Doğum günü sürprizi", body: "Pastayı ben ayarlıyorum, sen balonları al :)", day: 5, hh: 21, seen: true},
+		{fromName: "Spotify", fromAddr: "no-reply@spotify.com", subject: "Bu haftanın keşifleri", body: "Senin için yeni bir çalma listesi hazırladık.", day: 4, hh: 9, seen: true},
+		{fromName: "Banka", fromAddr: "ekstre@banka.com.tr", subject: "Ekstre bildirimi", body: "Kasım dönemi kredi kartı ekstreniz ektedir.", day: 3, hh: 9, seen: true, flagged: true, att: []mailmsg.Attachment{{Name: "ekstre_kasim.pdf", Data: pdf()}}},
+		{fromName: "Google", fromAddr: "no-reply@accounts.google.com", subject: "Güvenlik uyarısı: yeni oturum açma", body: "Hesabınızda Windows cihazından yeni oturum açıldı.", day: 2, hh: 11, seen: true},
+		{fromName: "Zeynep Arslan", fromAddr: "zeynep.arslan@gmail.com", subject: "Fotoğraflar", body: "Tatil fotoğraflarını ekledim.", day: 2, hh: 20, seen: true, att: []mailmsg.Attachment{{Name: "tatil.jpg", Data: []byte{0xff, 0xd8, 0xff}}}},
+		{fromName: "Trendyol", fromAddr: "siparis@trendyol.com", subject: "Siparişiniz kargoya verildi", body: "Siparişiniz kargoya verildi, takip numarası: 123456.", day: 1, hh: 16, seen: true},
+		{fromName: "Ayşe Demir", fromAddr: "ayse.demir@firma.com.tr", subject: "Re: Hafta sonu planı", body: "Cumartesi uygun, pazar olmaz.", day: 1, hh: 19, seen: true},
+		{fromName: "GitHub", fromAddr: "notifications@github.com", subject: "[notify-guard] v0.2 derleme tamam", body: "Derleme başarıyla tamamlandı.", day: 0, hh: 11, mm: 48},
+		{fromName: "Turkcell", fromAddr: "fatura@turkcell.com.tr", subject: "Kasım 2026 faturanız hazır", body: turkcellBody, day: 0, hh: 13, mm: 5, att: []mailmsg.Attachment{{Name: "fatura_kasim_2026.pdf", Data: append(pdf(), make([]byte, 212*1024-len(pdf()))...)}}},
+		{fromName: "Garanti BBVA", fromAddr: "bilgi@garantibbva-guvenlik.com", subject: "Hesabınızı doğrulayın", body: linksBody, day: 0, hh: 9, mm: 12, html: true},
+		{fromName: "Mehmet Kaya", fromAddr: "mehmet.kaya@gmail.com", subject: "Akşam yemeği?", body: "Bu akşam 20:00'de Karaköy'de buluşalım mı?", day: 0, hh: 14, mm: 31},
+		// more mail from the same senders (grouping by sender) and bills (search)
+		{fromName: "Google Play", fromAddr: "googleplay-noreply@google.com", subject: "Google Play'de satın alma onayı", body: "Satın alma işleminiz onaylandı. Fatura e-posta adresinize gönderildi.", day: 0, hh: 9, mm: 33},
+		{fromName: "Google", fromAddr: "photos-noreply@google.com", subject: "Fotoğraflarınız yedeklendi", body: "Son çektiğiniz 48 fotoğraf yedeklendi.", day: 2, hh: 8, mm: 10},
+		{fromName: "Google", fromAddr: "no-reply@accounts.google.com", subject: "Hesap etkinliği özeti", body: "Bu ayki hesap etkinliğiniz.", day: 4, hh: 7, seen: true},
+		{fromName: "Google", fromAddr: "bildirim@google.com", subject: "Yeni özellik: hızlı paylaşım", body: "Dosyalarınızı artık daha hızlı paylaşabilirsiniz.", day: 6, hh: 10, seen: true},
+		{fromName: "GitHub", fromAddr: "notifications@github.com", subject: "[notify-guard] PR #12 birleştirildi", body: "Değişiklik ana dala alındı.", day: 1, hh: 10, seen: true},
+		{fromName: "GitHub", fromAddr: "noreply@github.com", subject: "[termail] depoya yeni yıldız", body: "Deponuz bir yıldız aldı.", day: 3, hh: 22, seen: true},
+		{fromName: "Trendyol", fromAddr: "kampanya@trendyol.com", subject: "Sepetinde ürün kaldı", body: "Sepetindeki ürünler tükenmeden al.", day: 3, hh: 12, seen: true},
+		{fromName: "Trendyol", fromAddr: "siparis@trendyol.com", subject: "Kargon yolda", body: "Siparişin dağıtıma çıktı.", day: 5, hh: 9, seen: true},
+		{fromName: "Banka", fromAddr: "bildirim@banka.com.tr", subject: "Ekstre ve fatura bildirimi", body: "Bu aylık fatura ve hesap hareketleriniz ekte.", day: 5, hh: 14, seen: true},
+		{fromName: "Udemy", fromAddr: "kurs@udemy.com", subject: "Yeni kurs önerileri", body: "İlginizi çekebilecek kurslar.", day: 9, hh: 8, seen: true},
+		{fromName: "Site Yönetimi", fromAddr: "yonetim@cankayasitesi.com.tr", subject: "Aidat faturası ektedir", body: "Kasım ayı aidat faturanızı ekte bulabilirsiniz.", day: 1, hh: 11, att: []mailmsg.Attachment{{Name: "aidat_kasim.pdf", Data: pdf()}}},
+		{fromName: "Enerjisa", fromAddr: "bilgi@enerjisa.com.tr", subject: "Aralık fatura dönemi başladı", body: "Yeni dönem faturanız 1 Aralık'ta kesilecektir.", day: 4, hh: 9, seen: true},
+	} {
+		add(k, "INBOX", me, now, m)
+	}
+	// Realistic provider mails (signed headers, HTML only, legacy Turkish
+	// charsets, emoji / CJK subjects, delivery report, forwarded message).
+	for i, sm := range samplemail.All(now) {
+		k.Add("INBOX", backend.Envelope{From: sm.FromName, FromAddr: sm.FromAddr, Subject: sm.Subject, Date: sm.Date,
+			Seen: i%2 == 1, Attach: sm.Attach}, sm.Raw)
+	}
+	add(k, "Drafts", me, now, msg{fromName: "Ahmet Yılmaz", fromAddr: me, subject: "Kitap önerisi", body: "Taslak", seen: true})
+	add(k, "Sent", me, now, msg{fromName: "Ahmet Yılmaz", fromAddr: me, subject: "Re: Akşam yemeği?", body: "Olur!", seen: true, day: 1})
+	add(k, "Faturalar", me, now, msg{fromName: "İGDAŞ", fromAddr: "fatura@igdas.com.tr", subject: "Doğalgaz faturası", body: "Faturanız hazır.", day: 10, seen: true})
+	trash := []string{"Haftalık bülten", "Kampanya hatırlatması", "Anket daveti", "Eski kargo bildirimi", "Etkinlik duyurusu"}
+	for i := 0; i < 23; i++ { // something to empty with Shift+D
+		add(k, "Trash", me, now, msg{fromName: "Bülten", fromAddr: "bulten@ornek.com", subject: trash[i%len(trash)] + " #" + strconv.Itoa(i+1), body: "Eski ileti.", day: 12 + i, hh: 9, seen: true})
+	}
+	mems[me] = k
+
+	// İş · Outlook
+	is := backend.NewMemory(append(append([]backend.Folder{}, stdFolders[0], stdFolders[2], stdFolders[3], stdFolders[5], stdFolders[6]), backend.Folder{Name: "Projeler"}, backend.Folder{Name: "Müşteriler"}))
+	isMe := "ahmet.yilmaz@firma.com.tr"
+	for _, m := range []msg{
+		{fromName: "İK Departmanı", fromAddr: "ik@firma.com.tr", subject: "Yılbaşı izin planı", body: "İzin taleplerinizi 1 Aralık'a kadar iletiniz.", day: 2, hh: 10, seen: true, flagged: true},
+		{fromName: "Can Öztürk", fromAddr: "can.ozturk@firma.com.tr", subject: "Bütçe tablosu", body: "Güncel bütçe ektedir.", day: 1, hh: 14, att: []mailmsg.Attachment{{Name: "butce.xlsx", Data: []byte("PK\x03\x04")}}},
+		{fromName: "Ayşe Demir", fromAddr: "ayse.demir@firma.com.tr", subject: "Proje toplantısı", body: "Merhaba Ahmet,\nToplantıyı perşembe 15:00'e almamız gerekiyor, uygun musun?\nAyşe", day: 0, hh: 14, mm: 30},
+	} {
+		add(is, "INBOX", isMe, now, m)
+	}
+	add(is, "Projeler", isMe, now, msg{fromName: "Mert Kılıç", fromAddr: "mert@firma.com.tr", subject: "Termail yol haritası", body: "Taslak ekte.", day: 3, flagged: true})
+	mems[isMe] = is
+
+	// Okul · Diğer
+	ok := backend.NewMemory([]backend.Folder{stdFolders[0], stdFolders[2], stdFolders[3], stdFolders[6]})
+	okMe := "a.yilmaz@ogr.univ.edu.tr"
+	add(ok, "INBOX", okMe, now, msg{fromName: "Öğrenci İşleri", fromAddr: "oidb@univ.edu.tr", subject: "Final sınav takvimi", body: "Final sınav takvimi yayınlandı.", day: 4, hh: 9, seen: true, flagged: true})
+	mems[okMe] = ok
+
+	mk := func(name, email, provider string, mem *backend.Memory) *ui.Acct {
+		s, _ := discover.Lookup(email)
+		s.Provider = provider
+		s.SaveSent = true
+		return &ui.Acct{Cfg: account.Account{Name: name, Email: email, FullName: "Ahmet Yılmaz", Settings: s}, B: mem}
+	}
+	return []*ui.Acct{
+		mk("Kişisel", me, "Gmail", k),
+		mk("İş", isMe, "Outlook", is),
+		mk("Okul", okMe, "Diğer", ok),
+	}, mems
+}
+
+// NewMail returns a function that delivers sample new mails after delay.
+func NewMail(mems map[string]*backend.Memory, n int, delay time.Duration, spamAfter time.Duration) func(func(tea.Msg)) {
+	samples := []struct{ acct, name, addr, subj, body string }{
+		{"ahmet.yilmaz@firma.com.tr", "Ayşe Demir", "ayse.demir@firma.com.tr", "Proje toplantısı – yeni saat", "Merhaba Ahmet,\nToplantıyı perşembe 15:00'e aldım.\nAyşe"},
+		{"ahmet.yilmaz@gmail.com", "Mehmet Kaya", "mehmet.kaya@gmail.com", "Rezervasyon tamam", "20:00 için masa ayırttım."},
+		{"ahmet.yilmaz@gmail.com", "Elif Şahin", "elif.sahin@gmail.com", "Balonlar", "Balonları aldın mı?"},
+		{"ahmet.yilmaz@firma.com.tr", "Can Öztürk", "can.ozturk@firma.com.tr", "Bütçe onaylandı", "Yönetim onayladı."},
+		{"ahmet.yilmaz@gmail.com", "Trendyol", "siparis@trendyol.com", "Siparişiniz teslim edildi", "Teslim edildi."},
+	}
+	return func(send func(tea.Msg)) {
+		if n > 0 {
+			time.Sleep(delay)
+			for i := 0; i < n && i < len(samples); i++ {
+				s := samples[i]
+				deliver(mems[s.acct], s.acct, s.name, s.addr, s.subj, s.body)
+				time.Sleep(300 * time.Millisecond)
+			}
+		}
+		if spamAfter > 0 {
+			time.Sleep(spamAfter)
+			deliver(mems["ahmet.yilmaz@gmail.com"], "ahmet.yilmaz@gmail.com", "Fırsat Dünyası", "yeni@kampanya.reklam.com", "Son şans: %80 indirim", "Engellenmiş bir alan adından geldi; Spam'e taşınmalı.")
+		}
+	}
+}
+
+func deliver(mem *backend.Memory, to, name, addr, subj, body string) {
+	now := time.Now()
+	o := &mailmsg.Outgoing{From: &mail.Address{Name: name, Address: addr}, To: []*mail.Address{{Address: to}}, Subject: subj, Body: body, Date: now}
+	raw, _ := mailmsg.Build(o)
+	p, _ := mailmsg.Parse(raw)
+	mem.Deliver("INBOX", backend.Envelope{From: name, FromAddr: addr, Subject: subj, Date: now, MessageID: p.MessageID}, raw)
+}
+
+func init() {
+	ui.DemoBackendFactory = func(email string) backend.Backend {
+		m := backend.NewMemory(stdFolders)
+		add(m, "INBOX", email, time.Now(), msg{fromName: "Termail", fromAddr: "merhaba@termail.local", subject: "Hoş geldin!", body: "Bu bir deneme hesabıdır."})
+		return m
+	}
+}

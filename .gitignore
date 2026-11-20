@@ -1,0 +1,27 @@
+# Derlenen program
+*.exe
+/termail
+/src/termail
+
+# Go
+*.test
+*.out
+/src/vendor/
+
+# Düzenleyici / sistem
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Yerel ayar ve gizli bilgiler (asla depoya girmesin)
+config.json
+*.env
+.env
+
+# Kişisel veri / yerel dosyalar
+ozgun-ileti-bilgileri.txt
+bug-render-*.png
+backup-*/
+__pycache__/
