@@ -109,6 +109,14 @@ func hintToKey(k string) string {
 		return "ctrl+f"
 	case "Ctrl+K":
 		return "ctrl+k"
+	case "Ctrl+L":
+		return "ctrl+l"
+	case "Ctrl+P":
+		return "ctrl+p"
+	case "Ctrl + O harfi":
+		return "ctrl+o"
+	case "F2":
+		return "f2"
 	case "↑↓", "↑", "↓":
 		return ""
 	case "h / Esc":

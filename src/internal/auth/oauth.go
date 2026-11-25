@@ -201,6 +201,16 @@ func AuthURL(cfg *oauth2.Config, redirect, state, challenge, loginHint string) s
 // shows the URL on screen. It returns when the browser comes back, ctx ends,
 // or Microsoft reports an error.
 func BrowserLogin(ctx context.Context, cfg *oauth2.Config, loginHint string, open func(string) error) (*oauth2.Token, error) {
+	return loopbackLogin(ctx, Microsoft, cfg, "localhost", func(redirect, state, challenge string) string {
+		return AuthURL(cfg, redirect, state, challenge, loginHint)
+	}, open)
+}
+
+// loopbackLogin is the shared browser sign-in: a one-shot web server on a
+// random loopback port receives the authorization code, which is exchanged
+// with the PKCE verifier. host is the redirect host name ("localhost" for
+// Microsoft, "127.0.0.1" for Google).
+func loopbackLogin(ctx context.Context, p Provider, cfg *oauth2.Config, host string, mkURL func(redirect, state, challenge string) string, open func(string) error) (*oauth2.Token, error) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return nil, err
@@ -209,16 +219,18 @@ func BrowserLogin(ctx context.Context, cfg *oauth2.Config, loginHint string, ope
 	port := ln.Addr().(*net.TCPAddr).Port
 	// browsers may resolve localhost to ::1 first; listen there too
 	var ln6 net.Listener
-	if l6, err := net.Listen("tcp", fmt.Sprintf("[::1]:%d", port)); err == nil {
-		ln6 = l6
-		defer ln6.Close()
+	if host == "localhost" {
+		if l6, err := net.Listen("tcp", fmt.Sprintf("[::1]:%d", port)); err == nil {
+			ln6 = l6
+			defer ln6.Close()
+		}
 	}
-	redirect := fmt.Sprintf("http://localhost:%d", port)
+	redirect := fmt.Sprintf("http://%s:%d", host, port)
 	verifier, challenge := NewPKCE()
 	stateB := make([]byte, 16)
 	rand.Read(stateB)
 	state := hex.EncodeToString(stateB)
-	authURL := AuthURL(cfg, redirect, state, challenge, loginHint)
+	authURL := mkURL(redirect, state, challenge)
 
 	type result struct {
 		code string
@@ -235,6 +247,7 @@ func BrowserLogin(ctx context.Context, cfg *oauth2.Config, loginHint string, ope
 		w.Header().Set("Cache-Control", "no-store")
 		if e := q.Get("error"); e != "" {
 			ae := parseErr(e, q.Get("error_description"))
+			ae.Provider = p
 			msg, _ := Friendly(ae)
 			fmt.Fprintf(w, page, "#e06c75", "✕", i18n.T("Giriş tamamlanamadı"), html.EscapeString(msg))
 			select {
@@ -266,7 +279,7 @@ func BrowserLogin(ctx context.Context, cfg *oauth2.Config, loginHint string, ope
 		c.RedirectURL = redirect
 		tok, err := c.Exchange(ctx, r.code, oauth2.SetAuthURLParam("code_verifier", verifier))
 		if err != nil {
-			return nil, wrapOAuth(err)
+			return nil, wrapFor(p, err)
 		}
 		return tok, nil
 	}
@@ -313,11 +326,16 @@ func WaitDevice(ctx context.Context, cfg *oauth2.Config, d *DeviceCode) (*oauth2
 // token. onRefresh is called when Microsoft hands out a new refresh token so
 // it can be persisted (in the Windows credential store).
 func TokenSource(cfg *oauth2.Config, refresh string, onRefresh func(string)) oauth2.TokenSource {
+	return tokenSource(Microsoft, cfg, refresh, onRefresh)
+}
+
+func tokenSource(p Provider, cfg *oauth2.Config, refresh string, onRefresh func(string)) oauth2.TokenSource {
 	base := cfg.TokenSource(context.Background(), &oauth2.Token{RefreshToken: refresh})
-	return &notifying{src: oauth2.ReuseTokenSource(nil, base), last: refresh, cb: onRefresh}
+	return &notifying{p: p, src: oauth2.ReuseTokenSource(nil, base), last: refresh, cb: onRefresh}
 }
 
 type notifying struct {
+	p    Provider
 	src  oauth2.TokenSource
 	last string
 	cb   func(string)
@@ -326,7 +344,7 @@ type notifying struct {
 func (n *notifying) Token() (*oauth2.Token, error) {
 	t, err := n.src.Token()
 	if err != nil {
-		return nil, wrapOAuth(err)
+		return nil, wrapFor(n.p, err)
 	}
 	if t.RefreshToken != "" && t.RefreshToken != n.last {
 		n.last = t.RefreshToken
@@ -366,11 +384,12 @@ func IDTokenEmail(t *oauth2.Token) string {
 
 // ---- errors ----
 
-// Error is a sign-in error reported by Microsoft.
+// Error is a sign-in error reported by Microsoft or Google.
 type Error struct {
-	OAuth string // e.g. invalid_grant, access_denied
-	Code  string // e.g. AADSTS50011
-	Desc  string
+	OAuth    string // e.g. invalid_grant, access_denied
+	Code     string // e.g. AADSTS50011
+	Desc     string
+	Provider Provider // "" (= Microsoft) or Google
 }
 
 func (e *Error) Error() string { return strings.TrimSpace(e.OAuth + " " + e.Code + " " + e.Desc) }
@@ -385,6 +404,17 @@ func parseErr(oauthCode, desc string) *Error {
 		e.Code = desc[i:j]
 	}
 	return e
+}
+
+// wrapFor is wrapOAuth with the provider recorded, so the message names
+// the right company.
+func wrapFor(p Provider, err error) error {
+	err = wrapOAuth(err)
+	var e *Error
+	if p != Microsoft && errors.As(err, &e) {
+		e.Provider = p
+	}
+	return err
 }
 
 func wrapOAuth(err error) error {
@@ -405,6 +435,9 @@ func Friendly(err error) (msg string, tryDevice bool) {
 	var e *Error
 	if !errors.As(err, &e) {
 		return "", false
+	}
+	if e.Provider == Google {
+		return googleFriendly(e), false
 	}
 	if e.Code == "AADSTS700016" || e.OAuth == "unauthorized_client" || strings.Contains(strings.ToLower(e.Desc), "not enabled for consumers") {
 		return msConsumersOff, false
@@ -437,15 +470,19 @@ func Friendly(err error) (msg string, tryDevice bool) {
 // TokenSourceFrom is TokenSource seeded with a token that is still valid,
 // so the first use does not renew it needlessly.
 func TokenSourceFrom(cfg *oauth2.Config, t *oauth2.Token, onRefresh func(string)) oauth2.TokenSource {
+	return tokenSourceFrom(Microsoft, cfg, t, onRefresh)
+}
+
+func tokenSourceFrom(p Provider, cfg *oauth2.Config, t *oauth2.Token, onRefresh func(string)) oauth2.TokenSource {
 	base := cfg.TokenSource(context.Background(), t)
-	return &notifying{src: oauth2.ReuseTokenSource(t, base), last: t.RefreshToken, cb: onRefresh}
+	return &notifying{p: p, src: oauth2.ReuseTokenSource(t, base), last: t.RefreshToken, cb: onRefresh}
 }
 
 // SessionExpired reports whether the saved Microsoft sign-in can no longer
 // be renewed, so the user has to sign in again.
 func SessionExpired(err error) bool {
 	msg, _ := Friendly(err)
-	return strings.Contains(msg, i18n.T("süresi doldu; yeniden giriş yap"))
+	return msg != "" && strings.Contains(msg, i18n.T("süresi doldu; yeniden giriş yap"))
 }
 
 // msConsumersOff: the app registration does not allow personal accounts

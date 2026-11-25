@@ -38,6 +38,24 @@ func BuildBackend(cfg *account.Config, a account.Account) (backend.Backend, erro
 			}
 			return t.AccessToken, nil
 		}
+	} else if a.Settings.Auth == discover.AuthGoogle {
+		rt, err := account.GetSecret(a.Email, account.SecretRefresh)
+		if err != nil {
+			return nil, err
+		}
+		oc, err := googleConfig(cfg)
+		if err != nil {
+			return nil, err
+		}
+		email := a.Email
+		ts := auth.GoogleTokenSource(oc, rt, func(n string) { _ = account.SetSecret(email, account.SecretRefresh, n) })
+		bc.Token = func(ctx context.Context) (string, error) {
+			t, err := ts.Token()
+			if err != nil {
+				return "", err
+			}
+			return t.AccessToken, nil
+		}
 	} else {
 		pw, err := account.GetSecret(a.Email, account.SecretPassword)
 		if err != nil {
@@ -56,6 +74,16 @@ func oauthConfig(cfg *account.Config, p auth.Provider, email string) (*oauth2.Co
 		id = cfg.MSClientID
 	}
 	return auth.ConfigFor(p, id, email)
+}
+
+// googleConfig is the Google client of this build (config.json, the
+// environment or the build itself), or auth.ErrNoClientID.
+func googleConfig(cfg *account.Config) (*oauth2.Config, error) {
+	id, secret := "", ""
+	if cfg != nil {
+		id, secret = cfg.GoogleClientID, cfg.GoogleClientSecret
+	}
+	return auth.GoogleConfig(id, secret)
 }
 
 func removeAccountConfig(cfg *account.Config, email string) {

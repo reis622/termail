@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
+
 	"termail/internal/backend"
 )
 
@@ -42,8 +44,12 @@ func TestCleanSecret(t *testing.T) {
 func TestLoginRefusedShowsReasonAndRelogin(t *testing.T) {
 	m, l := loginModelFor(t)
 	typePlain(m, "ad@gmail.com")
+	m.Update(tea.KeyMsg{Type: tea.KeyCtrlP}) // app-password fallback
 	l.setFocus(1)
 	typePlain(m, "abcd efgh")
+	if l.email.Value() != "ad@gmail.com" || l.pass.Value() != "abcdefgh" {
+		t.Fatalf("fields %q %q", l.email.Value(), l.pass.Value())
+	}
 	l.passWarn = gmailPassWarn(l.cleanPass())
 	m.Update(loginDoneMsg{err: &backend.AuthError{Code: "AUTHENTICATIONFAILED", Text: "Invalid credentials (Failure)"}})
 	if !strings.Contains(l.status, "16 küçük harf") || !strings.Contains(l.status, "Invalid credentials") {

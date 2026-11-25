@@ -43,6 +43,7 @@ type loginModel struct {
 	cancel    context.CancelFunc
 	w         int
 	forceMS   bool
+	usePass   bool   // a Google address signs in with an app password instead (advanced)
 	helpURL   string // shown on screen after Ctrl+O, in case no browser opens
 }
 
@@ -50,7 +51,8 @@ type loginModel struct {
 // console fonts the letter O looks like the digit 0.
 const (
 	keyAppPassword = "ctrl+o" // open the "how to get an app password" page
-	keyCopyLink    = "ctrl+l" // copy the sign-in link (Microsoft)
+	keyCopyLink    = "ctrl+l" // copy the sign-in link (Microsoft / Google)
+	keyUsePass     = "ctrl+p" // Gmail: switch between Google sign-in and app password
 )
 
 type loginDoneMsg struct {
@@ -182,8 +184,22 @@ func (l *loginModel) isMS() bool {
 	return ok && s.Auth == discover.AuthMicrosoft
 }
 
+// isGoogle: a Gmail address that signs in with Google in the browser
+// (unless the app-password fallback was chosen).
+func (l *loginModel) isGoogle() bool {
+	return !l.usePass && !l.forceMS && l.googleAddress()
+}
+
+// googleAddress: gmail.com / googlemail.com.
+func (l *loginModel) googleAddress() bool {
+	return auth.DetectProvider(cleanAddress(l.email.Value())) == auth.Google
+}
+
+// browserSignIn: the address signs in through the browser, no password.
+func (l *loginModel) browserSignIn() bool { return l.isMS() || l.isGoogle() }
+
 func (l *loginModel) inputs() []*edit.Editor {
-	if l.isMS() {
+	if l.browserSignIn() {
 		return []*edit.Editor{&l.email}
 	}
 	in := []*edit.Editor{&l.email, &l.pass}
@@ -282,6 +298,16 @@ func (l *loginModel) key(k tea.KeyMsg) tea.Cmd {
 	case keyAppPassword:
 		l.openAppPasswordHelp()
 		return nil
+	case keyUsePass:
+		if !l.busy && l.googleAddress() {
+			l.usePass = !l.usePass
+			l.status, l.statusFG, l.helpURL = "", "", ""
+			if l.usePass {
+				return l.setFocus(1)
+			}
+			return l.setFocus(0)
+		}
+		return nil
 	case keyCopyLink:
 		if l.authURL != "" {
 			copyTextFn(l.authURL)
@@ -368,6 +394,9 @@ func (l *loginModel) submit() tea.Cmd {
 	}
 	if l.isMS() {
 		return l.startMicrosoft()
+	}
+	if l.isGoogle() {
+		return l.startGoogle()
 	}
 	if l.focus == 0 && l.cleanPass() == "" {
 		return l.setFocus(1)
@@ -556,6 +585,103 @@ func finishMicrosoft(ctx context.Context, oc *oauth2.Config, email string, tok *
 	return loginDoneMsg{acct: acct, b: rb, secretKind: account.SecretRefresh, secret: tok.RefreshToken}
 }
 
+func (l *loginModel) googleEnabled() bool {
+	id, secret := "", ""
+	if c := l.m.opt.Config; c != nil {
+		id, secret = c.GoogleClientID, c.GoogleClientSecret
+	}
+	return auth.GoogleEnabled(id, secret)
+}
+
+// startGoogle signs a Gmail address in through the browser (Google's
+// installed-app flow: PKCE + a one-shot 127.0.0.1 return address). Without a
+// Google client in this build it only explains that, and the app-password
+// fallback stays available.
+func (l *loginModel) startGoogle() tea.Cmd {
+	m := l.m
+	email := cleanAddress(l.email.Value())
+	if m.opt.Demo { // demo: pretend the browser approval takes a few seconds
+		l.busy, l.waiting, l.waitStart = true, true, m.opt.Now()
+		l.status = ""
+		l.authURL = auth.GoogleEndpoint.AuthURL + "?client_id=…"
+		s, _ := discover.Lookup(email)
+		s.Auth = discover.AuthGoogle
+		acct := account.Account{Email: email, Settings: s}
+		return tea.Tick(6*time.Second, func(time.Time) tea.Msg {
+			return loginDoneMsg{acct: acct, b: demoBackendFor(email)}
+		})
+	}
+	oc, err := googleConfig(m.opt.Config)
+	if err != nil {
+		l.status, l.statusFG = auth.GoogleUnavailable(), cYellow
+		return nil
+	}
+	l.busy, l.waiting, l.waitStart = true, true, m.opt.Now()
+	l.status = ""
+	ctx, cancel := context.WithTimeout(m.ctx, 10*time.Minute)
+	l.cancel = cancel
+	send := m.send
+	return func() tea.Msg {
+		defer cancel()
+		open := func(u string) error {
+			send(loginURLMsg{url: u})
+			if err := openURLFn(u); err != nil {
+				send(loginStatusMsg{i18n.T("Tarayıcı açılamadı. Bağlantıyı kopyalayıp tarayıcına yapıştır."), cYellow})
+				return err
+			}
+			return nil
+		}
+		tok, err := auth.GoogleBrowserLogin(ctx, oc, email, open)
+		if err != nil {
+			return loginDoneMsg{err: err}
+		}
+		return finishGoogle(ctx, oc, email, tok)
+	}
+}
+
+// googleSettings: Gmail's servers with the Google sign-in.
+func googleSettings(email string) discover.Settings {
+	s, ok := discover.Lookup(email)
+	if !ok || s.Incoming.Host != "imap.gmail.com" {
+		s, _ = discover.Lookup("x@gmail.com")
+		s.Provider = "Google"
+	}
+	s.Auth = discover.AuthGoogle
+	return s
+}
+
+// finishGoogle checks the mailbox with the new sign-in (XOAUTH2) and returns
+// a backend that renews its access by itself; the refresh token is saved in
+// the Windows credential store like a Microsoft one.
+func finishGoogle(ctx context.Context, oc *oauth2.Config, email string, tok *oauth2.Token) tea.Msg {
+	if real := auth.IDTokenEmail(tok); real != "" && !strings.EqualFold(real, email) {
+		email = strings.ToLower(real) // the account actually chosen in the browser
+	}
+	s := googleSettings(email)
+	acct := account.Account{Email: email, Settings: s}
+	access := tok.AccessToken
+	b := backend.NewIMAP(backend.Config{Incoming: s.Incoming, Outgoing: s.Outgoing, Username: email,
+		Token: func(context.Context) (string, error) { return access, nil }})
+	if err := b.Connect(ctx); err != nil {
+		return loginDoneMsg{acct: acct, err: err}
+	}
+	b.Close()
+	if tok.RefreshToken == "" {
+		return loginDoneMsg{acct: acct, err: errors.New("no refresh token")}
+	}
+	seed := &oauth2.Token{AccessToken: tok.AccessToken, RefreshToken: tok.RefreshToken, Expiry: tok.Expiry, TokenType: tok.TokenType}
+	ts := auth.GoogleTokenSourceFrom(oc, seed, func(n string) { _ = account.SetSecret(email, account.SecretRefresh, n) })
+	rb := backend.NewIMAP(backend.Config{Incoming: s.Incoming, Outgoing: s.Outgoing, Username: email,
+		Token: func(context.Context) (string, error) {
+			t, err := ts.Token()
+			if err != nil {
+				return "", err
+			}
+			return t.AccessToken, nil
+		}})
+	return loginDoneMsg{acct: acct, b: rb, secretKind: account.SecretRefresh, secret: tok.RefreshToken}
+}
+
 func (m *Model) onLoginDone(d loginDoneMsg) tea.Cmd {
 	l := m.login
 	if l == nil {
@@ -579,6 +705,8 @@ func (m *Model) onLoginDone(d loginDoneMsg) tea.Cmd {
 		msg := friendly(d.err)
 		if errors.Is(d.err, backend.ErrAuth) && l.isMS() {
 			msg = i18n.T("Microsoft girişi tamam ama posta kutusu açılmadı. Outlook ayarlarında posta programı erişiminin açık olduğundan emin ol.")
+		} else if errors.Is(d.err, backend.ErrAuth) && l.isGoogle() {
+			msg = i18n.T("Google girişi tamam ama posta kutusu açılmadı. Gmail ayarlarında posta programı erişiminin açık olduğundan emin ol.")
 		} else if errors.Is(d.err, backend.ErrAuth) {
 			msg = backend.AuthReason(d.err)
 			if l.passWarn != "" {
@@ -617,6 +745,19 @@ func (m *Model) onLoginDone(d loginDoneMsg) tea.Cmd {
 		// signed in again: the new password (already saved over the old
 		// one above) replaces the old connection
 		a := m.accts[i]
+		if a.Cfg.Settings.Auth != d.acct.Settings.Auth && !m.opt.Demo {
+			// e.g. a Gmail account moving from its app password to the
+			// Google sign-in: the next start must use the new kind
+			a.Cfg.Settings = d.acct.Settings
+			for j := range cfg.Accounts {
+				if strings.EqualFold(cfg.Accounts[j].Email, d.acct.Email) {
+					cfg.Accounts[j].Settings = d.acct.Settings
+				}
+			}
+			if err := cfg.Save(); err != nil {
+				m.toastErr("config", err)
+			}
+		}
 		if old := a.B; old != nil {
 			go old.Close()
 		}
@@ -641,6 +782,8 @@ func (m *Model) onLoginDone(d loginDoneMsg) tea.Cmd {
 
 func (l *loginModel) draw(g *grid.Grid) {
 	ms := l.isMS()
+	gg := l.isGoogle()
+	web := ms || gg
 	cw, ch := min(64, g.W-4), 20
 	if l.manual {
 		ch += 5
@@ -653,6 +796,9 @@ func (l *loginModel) draw(g *grid.Grid) {
 	if l.helpURL != "" {
 		ch += 3
 	}
+	if gg && !l.googleEnabled() {
+		ch++
+	}
 	cx, cy := (g.W-cw)/2, max(3, (g.H-ch)/2-1)
 	g.Put((g.W-11)/2, cy-3, " ◆ Termail ", stbgb(cBG, cAccent, true), 0)
 	g.Box(cx, cy, cw, ch, cBorder, cPanel, "", "")
@@ -660,7 +806,7 @@ func (l *loginModel) draw(g *grid.Grid) {
 	y := cy + 2
 	g.Put(fx, y, i18n.T("Hoş geldin"), stb(cFG), 0)
 	y++
-	if ms {
+	if web {
 		g.Put(fx, y, "E-posta adresini gir, yeter.", st(cDim), 0)
 	} else {
 		g.Put(fx, y, i18n.T("E-posta adresini ve şifreni gir, yeter."), st(cDim), 0)
@@ -691,7 +837,7 @@ func (l *loginModel) draw(g *grid.Grid) {
 		y += 2
 	}
 	field("E-posta", &l.email, 0, cBG)
-	if !ms {
+	if !web {
 		field(i18n.T("Şifre"), &l.pass, 1, cRaised)
 		if l.manual {
 			field("Gelen posta sunucusu", &l.imapIn, 2, cBG)
@@ -712,13 +858,24 @@ func (l *loginModel) draw(g *grid.Grid) {
 		g.Put(fx+2, y, i18n.T("Şifren Windows'ta güvenle saklanır, bir daha sorulmaz."), st(cFaint), fw-2)
 		y += 2
 	} else {
-		g.Put(fx, y, i18n.T("Microsoft hesabı için şifre gerekmez."), st(cFG), 0)
+		if gg {
+			g.Put(fx, y, i18n.T("Google hesabı için şifre gerekmez."), st(cFG), 0)
+		} else {
+			g.Put(fx, y, i18n.T("Microsoft hesabı için şifre gerekmez."), st(cFG), 0)
+		}
 		y++
 		g.Put(fx, y, i18n.T("Tarayıcıda bir kez onay vermen yeterli."), st(cDim), 0)
 		y += 2
-		if !l.msEnabled() && l.status == "" {
-			g.Put(fx, y, msUnavailable, st(cYellow), fw)
+		if ms && !l.msEnabled() && l.status == "" {
+			g.Put(fx, y, i18n.T(msUnavailable), st(cYellow), fw)
 			y += 2
+		}
+		if gg && !l.googleEnabled() && l.status == "" {
+			for _, line := range wrapText(auth.GoogleUnavailable(), fw) {
+				g.Put(fx, y, line, st(cYellow), fw)
+				y++
+			}
+			y++
 		}
 		if l.waiting || l.device != nil {
 			bh := 5
@@ -741,8 +898,13 @@ func (l *loginModel) draw(g *grid.Grid) {
 				g.Put(fx+2, y+1, "●", stbg(cAccent, cWaitBG), 0)
 				g.Put(fx+4, y+1, i18n.T("Tarayıcıda onay bekleniyor…"), stbg(cFG, cWaitBG), 0)
 				g.RPut(fx+fw-2, y+1, fmt.Sprintf("%d:%02d", int(el.Minutes()), int(el.Seconds())%60), stbg(cFaint, cWaitBG))
-				g.Put(fx+2, y+2, i18n.T("Açılmadıysa: Ctrl+L bağlantıyı kopyalar."), stbg(cDim, cWaitBG), fw-4)
-				g.Put(fx+2, y+3, i18n.T("Tarayıcıda hata mı var? k: kodla giriş"), stbg(cDim, cWaitBG), fw-4)
+				if gg {
+					g.Put(fx+2, y+2, i18n.T("Tarayıcı açılmadıysa bağlantıyı kopyalayıp yapıştır."), stbg(cDim, cWaitBG), fw-4)
+					g.Put(fx+2, y+3, i18n.T("Onay verince bu ekrana kendiliğinden dönülür."), stbg(cDim, cWaitBG), fw-4)
+				} else {
+					g.Put(fx+2, y+2, i18n.T("Açılmadıysa: Ctrl+L bağlantıyı kopyalar."), stbg(cDim, cWaitBG), fw-4)
+					g.Put(fx+2, y+3, i18n.T("Tarayıcıda hata mı var? k: kodla giriş"), stbg(cDim, cWaitBG), fw-4)
+				}
 			}
 			y += bh + 1
 		} else {
@@ -757,7 +919,7 @@ func (l *loginModel) draw(g *grid.Grid) {
 			g.Put(fx, y, line, st(l.statusFG), fw)
 			y++
 		}
-		if l.helpURL != "" && !ms {
+		if l.helpURL != "" && !web {
 			g.Put(fx, y, l.helpURL, stb(cAccent), fw)
 			y++
 		}
@@ -768,15 +930,20 @@ func (l *loginModel) draw(g *grid.Grid) {
 	bt := i18n.T("  Enter  ·  Giriş yap  ")
 	if ms {
 		bt = i18n.T("  Enter  ·  Tarayıcıda Microsoft ile giriş yap  ")
+	} else if gg {
+		bt = i18n.T("  Enter  ·  Tarayıcıda Google ile giriş yap  ")
 	}
-	if l.busy && !ms {
+	if l.busy && !web {
 		bt = i18n.T("  Giriş yapılıyor…  ")
 	}
-	if ms && (!l.msEnabled() || l.busy) {
+	if (ms && !l.msEnabled()) || (gg && !l.googleEnabled()) || (web && l.busy) {
 		bt = "" // nothing to press now
 	}
+	hits := &l.m.hits
 	if bt != "" && y < cy+ch-1 {
-		g.Put(cx+(cw-grid.Width(bt))/2, min(y, cy+ch-2), bt, stbgb(cBG, cAccent, true), 0)
+		bx, by := cx+(cw-grid.Width(bt))/2, min(y, cy+ch-2)
+		g.Put(bx, by, bt, stbgb(cBG, cAccent, true), 0)
+		hits.add(hit{x: bx, y: by, w: grid.Width(bt), h: 1, kind: hitKeybar, s: "enter"})
 	}
 	note := i18n.T("Sunucu ayarları otomatik bulunur; elle girmen gerekmez.")
 	g.Put((g.W-grid.Width(note))/2, cy+ch+1, note, st(cFaint), 0)
@@ -787,16 +954,29 @@ func (l *loginModel) draw(g *grid.Grid) {
 	if l.busy {
 		esc = i18n.T("İptal")
 	}
-	if ms && !l.msEnabled() {
-		keybar(g, g.H-1, []keyHint{{"Esc", esc}}, "", nil)
-	} else if ms && l.device != nil {
-		keybar(g, g.H-1, []keyHint{{"c", "Kodu kopyala"}, {"Ctrl+L", "Adresi kopyala"}, {"Esc", esc}}, "", nil)
-	} else if ms && l.busy {
-		keybar(g, g.H-1, []keyHint{{"Ctrl+L", i18n.T("Bağlantıyı kopyala")}, {"k", i18n.T("Kodla giriş")}, {"Esc", esc}}, "", nil)
-	} else if ms {
-		keybar(g, g.H-1, []keyHint{{"Enter", i18n.T("Tarayıcıda giriş yap")}, {"Esc", esc}}, "", nil)
-	} else {
-		keybar(g, g.H-1, []keyHint{{"Enter", i18n.T("Giriş")}, {"Tab", "Sonraki alan"}, {"F2", i18n.T("Şifreyi göster/gizle")}, {"Ctrl + O harfi", i18n.T("Uygulama şifresi nasıl alınır")}, {"Esc", esc}}, "", nil)
+	usePass := keyHint{"Ctrl+P", i18n.T("Uygulama şifresiyle gir")}
+	switch {
+	case gg && !l.googleEnabled():
+		keybar(g, g.H-1, []keyHint{usePass, {"Esc", esc}}, "", hits)
+	case gg && l.busy:
+		keybar(g, g.H-1, []keyHint{{"Ctrl+L", i18n.T("Bağlantıyı kopyala")}, {"Esc", esc}}, "", hits)
+	case gg:
+		keybar(g, g.H-1, []keyHint{{"Enter", i18n.T("Tarayıcıda giriş yap")}, usePass, {"Esc", esc}}, "", hits)
+	case ms && !l.msEnabled():
+		keybar(g, g.H-1, []keyHint{{"Esc", esc}}, "", hits)
+	case ms && l.device != nil:
+		keybar(g, g.H-1, []keyHint{{"c", "Kodu kopyala"}, {"Ctrl+L", "Adresi kopyala"}, {"Esc", esc}}, "", hits)
+	case ms && l.busy:
+		keybar(g, g.H-1, []keyHint{{"Ctrl+L", i18n.T("Bağlantıyı kopyala")}, {"k", i18n.T("Kodla giriş")}, {"Esc", esc}}, "", hits)
+	case ms:
+		keybar(g, g.H-1, []keyHint{{"Enter", i18n.T("Tarayıcıda giriş yap")}, {"Esc", esc}}, "", hits)
+	default:
+		items := []keyHint{{"Enter", i18n.T("Giriş")}}
+		if l.googleAddress() && !l.busy { // the app-password fallback: back to Google
+			items = append(items, keyHint{"Ctrl+P", i18n.T("Google ile gir")})
+		}
+		items = append(items, keyHint{"Tab", "Sonraki alan"}, keyHint{"F2", i18n.T("Şifreyi göster/gizle")}, keyHint{"Ctrl + O harfi", i18n.T("Uygulama şifresi nasıl alınır")}, keyHint{"Esc", esc})
+		keybar(g, g.H-1, items, "", hits)
 	}
 }
 

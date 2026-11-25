@@ -36,6 +36,7 @@ const (
 	AuthPassword    AuthKind = "password"
 	AuthAppPassword AuthKind = "app-password" // password, but show the app-password hint
 	AuthMicrosoft   AuthKind = "microsoft"
+	AuthGoogle      AuthKind = "google" // Google browser sign-in (OAuth2, XOAUTH2)
 )
 
 // Server is one endpoint.

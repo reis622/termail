@@ -1,4 +1,4 @@
-// Package auth implements Microsoft browser sign-in and the
+// Package auth implements Microsoft and Google browser sign-in and the
 // XOAUTH2 mechanism used by mail servers for token based login.
 package auth
 

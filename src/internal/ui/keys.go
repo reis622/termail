@@ -229,6 +229,14 @@ func asKey(s string) tea.KeyMsg {
 		return tea.KeyMsg{Type: tea.KeyCtrlW}
 	case "ctrl+k":
 		return tea.KeyMsg{Type: tea.KeyCtrlK}
+	case "ctrl+l":
+		return tea.KeyMsg{Type: tea.KeyCtrlL}
+	case "ctrl+p":
+		return tea.KeyMsg{Type: tea.KeyCtrlP}
+	case "ctrl+o":
+		return tea.KeyMsg{Type: tea.KeyCtrlO}
+	case "f2":
+		return tea.KeyMsg{Type: tea.KeyF2}
 	case "shift+tab":
 		return tea.KeyMsg{Type: tea.KeyShiftTab}
 	case "shift+enter":

@@ -39,6 +39,9 @@ func (a Account) Login() string {
 type Config struct {
 	Accounts   []Account `json:"accounts"`
 	MSClientID string    `json:"microsoft_client_id,omitempty"`
+	// Google OAuth client (optional; release builds carry their own).
+	GoogleClientID     string `json:"google_client_id,omitempty"`
+	GoogleClientSecret string `json:"google_client_secret,omitempty"`
 	// Mouse: "kapalı" turns the mouse off (default: on).
 	Mouse string `json:"fare,omitempty"`
 	// Language is "tr" or "en". Empty means auto-detect on start.

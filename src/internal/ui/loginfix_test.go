@@ -10,6 +10,7 @@ import (
 func TestModifierJunkNeverTyped(t *testing.T) {
 	m, l := loginModelFor(t)
 	typePlain(m, "ad@gmail.com")
+	m.Update(tea.KeyMsg{Type: tea.KeyCtrlP}) // app-password fallback
 	l.setFocus(1)
 	typePlain(m, "gizli")
 	// what consoles send for Ctrl / AltGr / Shift alone (after the input
@@ -39,6 +40,7 @@ func TestAppPasswordPasteOnce(t *testing.T) {
 	clock := time.Date(2026, 11, 14, 19, 0, 0, 0, time.UTC)
 	m.opt.Now = func() time.Time { return clock }
 	typePlain(m, "ad@gmail.com")
+	m.Update(tea.KeyMsg{Type: tea.KeyCtrlP}) // app-password fallback
 	l.setFocus(1)
 	clip := "abcd efgh ijkl mnop\r\n"
 	stubClipboard(t, &clip)

@@ -36,6 +36,8 @@ func stubBrowser(t *testing.T, fail bool) *browserStub {
 func loginModelFor(t *testing.T) (*Model, *loginModel) {
 	t.Helper()
 	t.Setenv("TERMAIL_MS_CLIENT_ID", "")
+	t.Setenv("TERMAIL_GOOGLE_CLIENT_ID", "")
+	t.Setenv("TERMAIL_GOOGLE_CLIENT_SECRET", "")
 	m := New(Options{Config: &account.Config{}})
 	m.w, m.h = 140, 40
 	if m.login == nil {
@@ -57,6 +59,7 @@ func TestLoginCtrlOWhileEmailFocused(t *testing.T) {
 	b := stubBrowser(t, false)
 	m, l := loginModelFor(t)
 	typeText(m, "ahmet@gmail.com")
+	m.onKey(tea.KeyMsg{Type: tea.KeyCtrlP}) // app-password fallback
 	m.onKey(tea.KeyMsg{Type: tea.KeyCtrlO})
 	if len(b.opened) != 1 || b.opened[0] != gmailHelp {
 		t.Fatalf("Ctrl+O opened %v", b.opened)
@@ -80,7 +83,7 @@ func TestLoginCtrlOWhilePasswordFocused(t *testing.T) {
 	b := stubBrowser(t, false)
 	m, l := loginModelFor(t)
 	typeText(m, "ahmet@gmail.com")
-	m.onKey(tea.KeyMsg{Type: tea.KeyTab})
+	m.onKey(tea.KeyMsg{Type: tea.KeyCtrlP}) // app-password fallback: focuses the password
 	typeText(m, "abcd")
 	m.onKey(tea.KeyMsg{Type: tea.KeyCtrlO})
 	if len(b.opened) != 1 || l.pass.Value() != "abcd" || l.focus != 1 {
@@ -92,6 +95,7 @@ func TestLoginHelpWithoutBrowserStillShowsAddress(t *testing.T) {
 	b := stubBrowser(t, true)
 	m, l := loginModelFor(t)
 	typeText(m, "ali@gmail.com")
+	m.onKey(tea.KeyMsg{Type: tea.KeyCtrlP})
 	m.onKey(tea.KeyMsg{Type: tea.KeyCtrlO})
 	if l.helpURL != gmailHelp || len(b.copied) == 0 || b.copied[0] != gmailHelp {
 		t.Fatal("address not kept / copied when the browser fails")
@@ -101,16 +105,13 @@ func TestLoginHelpWithoutBrowserStillShowsAddress(t *testing.T) {
 	}
 }
 
-func TestLoginNoGoogleOption(t *testing.T) {
+func TestLoginCtrlGDoesNothing(t *testing.T) {
 	b := stubBrowser(t, false)
 	m, l := loginModelFor(t)
 	typeText(m, "ahmet@gmail.com")
 	m.onKey(tea.KeyMsg{Type: tea.KeyCtrlG})
 	if l.busy || l.waiting || len(b.opened) != 0 {
 		t.Fatal("Ctrl+G still starts something")
-	}
-	if v := m.View(); strings.Contains(v, "Google ile") {
-		t.Fatal("Google sign-in still offered on screen")
 	}
 }
 

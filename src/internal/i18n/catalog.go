@@ -551,4 +551,20 @@ var enUS = map[string]string{
 	"⊘ Engellenenler":       "⊘ Blocked",
 	"──── İletilen ileti: ": "──── Forwarded message: ",
 	"● %d yeni":             "● %d new",
+
+	// Google sign-in
+	"Google ile giriş bu sürümde yapılandırılmamış. Uygulama şifresiyle girebilirsin.":                                    "Google sign-in is not configured in this build. You can sign in with an app password.",
+	"Google bu hesabın girişine izin vermedi. Hesabın programın test kullanıcıları arasında olmalı.":                      "Google did not allow this account to sign in. The account must be one of the app's test users.",
+	"Google oturumunun süresi doldu; yeniden giriş yap.":                                                                  "The Google session expired; sign in again.",
+	"Google bu programın girişine izin vermiyor; program ayarlarında bir eksik var.":                                      "Google is not allowing this app to sign in; something is missing in the app setup.",
+	"Kuruluşun bu programın Google hesabına erişmesine izin vermiyor.":                                                    "Your organization does not allow this app to access the Google account.",
+	"Google ile giriş tamamlanamadı. Tekrar dene.":                                                                        "Google sign-in could not be completed. Try again.",
+	"Tarayıcı açılamadı. Bağlantıyı kopyalayıp tarayıcına yapıştır.":                                                      "The browser could not be opened. Copy the link and paste it into your browser.",
+	"Google girişi tamam ama posta kutusu açılmadı. Gmail ayarlarında posta programı erişiminin açık olduğundan emin ol.": "Google sign-in succeeded but the mailbox could not be opened. Make sure mail-app access is enabled in Gmail settings.",
+	"Google hesabı için şifre gerekmez.":                                                                                  "A Google account does not need a password here.",
+	"Tarayıcı açılmadıysa bağlantıyı kopyalayıp yapıştır.":                                                                "If the browser did not open, copy the link and paste it.",
+	"Onay verince bu ekrana kendiliğinden dönülür.":                                                                       "After you approve, Termail continues by itself.",
+	"  Enter  ·  Tarayıcıda Google ile giriş yap  ":                                                                       "  Enter  ·  Sign in with Google in the browser  ",
+	"Uygulama şifresiyle gir": "Use an app password",
+	"Google ile gir":          "Sign in with Google",
 }

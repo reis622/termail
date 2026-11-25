@@ -50,7 +50,9 @@ Kısayol tuşları dil değişince aynı kalır; yalnızca yazılar değişir. O
 
 ### Gmail
 
-Gmail normal şifreni kabul etmez; bunun yerine bir **uygulama şifresi** ister.
+**Google ile giriş (şifresiz).** `gmail.com` ya da `googlemail.com` adresini yazıp **Enter**'a bas (ya da "Tarayıcıda Google ile giriş yap" düğmesine tıkla). Tarayıcıda Google sayfası açılır; hesabını seçip izin ver, Termail kendiliğinden devam eder. Tarayıcı açılmazsa **Ctrl+L** bağlantıyı kopyalar. Giriş Windows'un Kimlik Bilgileri Yöneticisi'nde saklanır ve oturum kendiliğinden yenilenir; Google oturumu bir gün sona ererse hesap "giriş gerekli" olarak görünür, yeniden giriş yapman yeter. Bu yöntem, programın Google istemci kimliğiyle derlenmiş olmasını gerektirir; kimliği olmayan bir sürümde ekranda "Google ile giriş bu sürümde yapılandırılmamış" yazar.
+
+**Uygulama şifresiyle giriş (yedek yöntem).** Gmail adresini yazdıktan sonra alt çubuktaki **Ctrl+P** ile (tıklanabilir) şifre alanına geçilir; aynı tuşla Google girişine dönülür. Gmail normal şifreni kabul etmez; bunun yerine bir **uygulama şifresi** ister.
 
 - Giriş ekranında **Ctrl + O** tuşlarına bas (**O harfi**, sıfır değil). "Uygulama şifreleri" sayfası tarayıcında açılır; açılmazsa sayfanın adresi ekranda gösterilir ve panoya kopyalanır.
 - Google hesabında iki adımlı doğrulama açık olmalıdır.
@@ -60,6 +62,8 @@ Gmail normal şifreni kabul etmez; bunun yerine bir **uygulama şifresi** ister.
 ![Uygulama şifresi yardımı](screenshots/04c-uygulama-sifresi-yardim.png)
 
 ### Outlook / Hotmail / Live
+
+Sağlayıcı adresten otomatik anlaşılır: tek giriş ekranında yalnızca e-posta adresini yazman yeter.
 
 Outlook, Hotmail, Live, MSN ve iş/okul Microsoft 365 adresleri için şifre gerekmez.
 
@@ -347,6 +351,21 @@ go build -ldflags "-s -w -X termail/internal/auth.DefaultMSClientID=<uygulama-ki
 
 Denemek için yeniden derlemeden: `TERMAIL_MS_CLIENT_ID` ortam değişkeni veya `config.json` içindeki `microsoft_client_id`.
 
+### Gmail girişini açmak (Google istemci kimliği)
+
+Depoda gerçek bir Google istemci kimliği ya da gizli anahtarı **yoktur**; ikisi derlerken gömülür. Kimlik yoksa program yine derlenir ve çalışır, Gmail adresinde "Google ile giriş bu sürümde yapılandırılmamış" der ve uygulama şifresi yedeği kullanılabilir. Akış: Google'ın masaüstü uygulaması akışı, PKCE (S256) + `http://127.0.0.1:<rastgele port>` dönüşü, `access_type=offline`. Kapsamlar: `https://mail.google.com/`, `openid`, `email`. Sunucular: `imap.gmail.com:993` ve `smtp.gmail.com:465` (TLS), XOAUTH2. Yenileme anahtarı yalnızca Windows Kimlik Bilgileri Yöneticisi'nde tutulur.
+
+1. Google Cloud Console → yeni proje → "Gmail API"yi etkinleştir.
+2. "OAuth consent screen" (Google Auth Platform): kullanıcı türü "External", uygulama adı ve destek e-postası; kapsam olarak `https://mail.google.com/` ekle. Bu kapsam "restricted" sınıfındadır: uygulama "Testing" durumundayken yalnızca "Test users" listesine eklenen hesaplar (en çok 100) giriş yapabilir ve yenileme anahtarları 7 günde sona erer. Herkese açmak için Google doğrulaması (ve bu kapsam için güvenlik değerlendirmesi) gerekir.
+3. "Credentials" → "Create credentials" → "OAuth client ID" → uygulama türü **Desktop app**. Yönlendirme adresi girmek gerekmez (loopback adresleri kendiliğinden kabul edilir).
+4. Derlerken göm:
+
+```
+GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w -X termail/internal/auth.googleClientID=<istemci-kimliği> -X termail/internal/auth.googleClientSecret=<gizli-anahtar>" -o ../termail.exe ./cmd/termail
+```
+
+Denemek için yeniden derlemeden: `TERMAIL_GOOGLE_CLIENT_ID` ve `TERMAIL_GOOGLE_CLIENT_SECRET` ortam değişkenleri veya `config.json` içindeki `google_client_id` ve `google_client_secret` (öncelik: `config.json` → ortam değişkeni → derleme).
+
 ### Diğer
 
 - Mimari notları: `ARCHITECTURE.md`.
@@ -376,6 +395,8 @@ Shortcut keys stay the same when you switch language; only the text changes. Con
 - **o** — open the selected message in the default browser (if the body is still loading, Termail says so and opens it when it arrives).
 - Inbox (and All Inboxes) lists every message: unread is brighter, read is dimmer. There is no separate Read / “Okunanlar” folder anymore.
 - **Shift+G** groups the list by sender. On a group heading, **d** deletes all of that sender’s messages in the current view (after confirmation).
+
+**Sign-in.** Type only your address; the provider is detected. Gmail (`gmail.com`, `googlemail.com`) signs in with Google in the browser and Outlook / Hotmail / Live / MSN with Microsoft; no password is needed. For Gmail, **Ctrl+P** (clickable in the bottom bar) switches to the app-password fallback and back. Google sign-in needs a build with a Google client ID (`-X termail/internal/auth.googleClientID=… -X termail/internal/auth.googleClientSecret=…`, or the `TERMAIL_GOOGLE_CLIENT_ID` / `TERMAIL_GOOGLE_CLIENT_SECRET` environment variables); without one the screen says Google sign-in is not configured.
 
 Install, Gmail app passwords, Microsoft sign-in, and the rest of the shortcuts are documented in Turkish above (the key bindings themselves do not change).
 

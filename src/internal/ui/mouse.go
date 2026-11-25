@@ -137,6 +137,12 @@ func (m *Model) onMouse(ev tea.MouseMsg) tea.Cmd {
 		if ev.Action == tea.MouseActionPress && ev.Button == tea.MouseButtonRight && !m.login.busy {
 			return m.pasteInto(m.login.field()) // right-click pastes, like in a terminal
 		}
+		if ev.Action == tea.MouseActionPress && ev.Button == tea.MouseButtonLeft {
+			// the sign-in button and the key bar are clickable
+			if h, ok := m.hits.at(ev.X, ev.Y); ok && h.kind == hitKeybar && h.s != "" {
+				return m.onKey(asKey(h.s))
+			}
+		}
 		m.noRender = true
 		return nil
 	}

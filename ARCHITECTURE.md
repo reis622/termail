@@ -19,7 +19,7 @@
 | MIME ayrıştırma/oluşturma | `emersion/go-message` (mail paketi) | Türkçe karakter kümeleri, ekler, `multipart/alternative` |
 | HTML → metin | `jaytaylor/html2text` (veya `k3a/html2text`) | HTML postayı terminalde okunur metne çevirir |
 | Şifre / token saklama | `zalando/go-keyring` → Windows Credential Manager (wincred) | Düz metin config yok; kullanıcı hesabına bağlı DPAPI koruması |
-| OAuth2 | `golang.org/x/oauth2` | Microsoft, PKCE, otomatik token yenileme |
+| OAuth2 | `golang.org/x/oauth2` | Microsoft ve Google, PKCE, otomatik token yenileme |
 | Yerel önbellek | `modernc.org/sqlite` (CGO'suz) + FTS5 | Anında açılış, çevrimdışı okuma, hızlı yerel arama |
 | Config | TOML (`pelletier/go-toml/v2`) `%APPDATA%\Posta\config.toml` | Sadece hesap adı, adres, sunucu bilgisi — sır yok |
 | Windows bildirimi (ops.) | `go-toast/toast` (PowerShell'siz WinRT çağrısı tercih) | Uygulama arka plandayken bildirim merkezi |
@@ -76,7 +76,7 @@ internal/notify/      Windows bildirim merkezi (isteğe bağlı)
    6. Hepsi başarısızsa **yalnızca o zaman** "Sunucu ayarları" alanları açılır.
 3. **Kimlik doğrulama türleri:**
    - **Microsoft (outlook.com, hotmail.*, live.*, msn.com, M365):** kişisel hesaplar artık şifreyle IMAP/SMTP kabul etmiyor → şifre alanı gizlenir, yerine **"Tarayıcıda Microsoft ile giriş yap"** gösterilir. OAuth2 **public client + PKCE**, **loopback redirect** (`http://localhost:<rastgele port>`, 127.0.0.1 ve ::1 dinlenir); tarayıcı açılamazsa adres ekranda + Ctrl+L; AADSTS50011/7000218 gibi hatalarda ya da 'k' ile **device code** akışına geçilir (kod büyük, 'c' kopyalar). Kapsamlar: `IMAP.AccessAsUser.All`, `SMTP.Send`, `offline_access`, `openid email profile` (adres id_token'dan). Yenilenemeyen oturum (invalid_grant) → hesap 'giriş gerekli'. IMAP/SMTP'de SASL **XOAUTH2**.
-   - **Gmail:** yalnızca **uygulama şifresi** (ipucu: "Gmail'de normal şifre yerine uygulama şifresi gir"; **Ctrl + O harfi** sayfayı tarayıcıda açar ve adres ekranda da gösterilir). Google ile tarayıcı girişi bilerek yok (gömülü Google istemci kimliği yok).
+   - **Gmail (gmail.com, googlemail.com):** varsayılan **"Tarayıcıda Google ile giriş yap"** (`auth.DetectProvider`). Google masaüstü akışı: PKCE (S256), loopback redirect `http://127.0.0.1:<rastgele port>`, `access_type=offline`, `prompt=select_account consent`; kapsamlar `https://mail.google.com/`, `openid`, `email`. İstemci kimliği/gizli anahtarı depoda yok: `config.json` (`google_client_id`/`google_client_secret`) → `TERMAIL_GOOGLE_CLIENT_ID`/`TERMAIL_GOOGLE_CLIENT_SECRET` → derleme (`-X termail/internal/auth.googleClientID=… -X termail/internal/auth.googleClientSecret=…`). Yoksa "Google ile giriş bu sürümde yapılandırılmamış" gösterilir. Hesap `auth: "google"` ile kaydedilir; refresh token Credential Manager'da, IMAP/SMTP'de XOAUTH2 (`imap.gmail.com:993`, `smtp.gmail.com:465`). Yedek: alt çubukta **Ctrl+P** ile **uygulama şifresi** (ipucu ve **Ctrl + O harfi** yardım sayfası aynen kalır).
    - **Diğerleri:** normal şifre (Yahoo/iCloud/Yandex için uygulama şifresi ipucu).
 4. **Saklama:** `config.toml` yalnızca hesap adı, adres, sunucu, auth türü tutar. Şifre ve OAuth **refresh token** Windows Credential Manager'da (`go-keyring`, servis adı `Posta:<adres>`). Access token sadece bellekte; süresi dolmadan `x/oauth2.TokenSource` ile otomatik yenilenir, yeni refresh token tekrar keyring'e yazılır. Sonraki açılışlarda giriş sorulmaz.
    - Not: Credential Manager bir kayıtta ~2,5 KB sınırına sahip; büyük token'lar gerekirse parçalara bölünerek saklanır.
@@ -116,7 +116,7 @@ Not: Bazı terminaller `Ctrl+Enter`'ı ayırt edemez; Windows Terminal'de çalı
 `GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w"` (konsol uygulaması) → `posta.exe` (~15 MB). İsteğe bağlı: Scoop manifesti, winget paketi, ilk açılışta Windows Terminal profili ekleme.
 
 ## 11. İlk sürüm kapsamı (öneri)
-Var: çoklu hesap, tek ekran giriş, otomatik sunucu bulma, Microsoft OAuth, Gmail uygulama şifresi, liste/klasörler/okuma/sekmeler, yaz/yanıtla/tümüne/ilet, sil/geri al, IDLE ile anlık yeni ileti + toast, yerel+sunucu arama.
+Var: çoklu hesap, tek ekran giriş, otomatik sunucu bulma, Microsoft OAuth, Google OAuth (Gmail), Gmail uygulama şifresi (yedek), liste/klasörler/okuma/sekmeler, yaz/yanıtla/tümüne/ilet, sil/geri al, IDLE ile anlık yeni ileti + toast, yerel+sunucu arama.
 Sonraya: konu (thread) görünümü, imzalar, kurallar/filtreler, PGP, takvim davetleri, HTML'i tarayıcıda açma (karar bekliyor).
 
 

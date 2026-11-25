@@ -19,6 +19,7 @@ Thumbs.db
 config.json
 *.env
 .env
+.env.*
 
 # Kişisel veri / yerel dosyalar
 ozgun-ileti-bilgileri.txt
