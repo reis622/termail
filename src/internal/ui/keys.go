@@ -771,7 +771,9 @@ func (m *Model) confirmRemoveAccount(ai int) {
 				go a.B.Close()
 			}
 			if m.opt.Config != nil && !m.opt.Demo {
-				removeAccountConfig(m.opt.Config, a.Cfg.Email)
+				removeAccountConfig(m.opt.Config, a.Cfg.Email) // config + saved sign-in
+			} else if !m.opt.Demo {
+				deleteAccountSecrets(a.Cfg.Email)
 			}
 			m.accts = append(m.accts[:ai], m.accts[ai+1:]...)
 			m.tabs = m.tabs[:1]

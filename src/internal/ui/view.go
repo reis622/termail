@@ -462,7 +462,11 @@ func (m *Model) drawMain(g *grid.Grid) {
 
 func (m *Model) drawMainKeybar(g *grid.Grid) {
 	if m.focus == focusFolders {
-		items := []keyHint{{"Enter", i18n.T("Aç")}, {"n", i18n.T("Yeni")}, {"→", "Liste"}, {"←", i18n.T("Geri")}, {"Alt+N", i18n.T("Klasör")}, {"+", i18n.T("Hesap ekle")}}
+		items := []keyHint{{"Enter", i18n.T("Aç")}}
+		if r, ok := m.folderCursorRow(); ok && r.kind == rowAcct {
+			items = append(items, keyHint{"Del", i18n.T("hesabı kaldır")}) // early, so it is never cut off
+		}
+		items = append(items, keyHint{"n", i18n.T("Yeni")}, keyHint{"→", "Liste"}, keyHint{"←", i18n.T("Geri")}, keyHint{"Alt+N", i18n.T("Klasör")}, keyHint{"+", i18n.T("Hesap ekle")})
 		if r, ok := m.customFolderAtCursor(); ok {
 			items = append(items, keyHint{"d", i18n.T("Sil")}, keyHint{"r", i18n.T("Yeniden adlandır")})
 			_ = r

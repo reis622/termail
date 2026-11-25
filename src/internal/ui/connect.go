@@ -94,6 +94,13 @@ func removeAccountConfig(cfg *account.Config, email string) {
 		}
 	}
 	_ = cfg.Save()
+	deleteAccountSecrets(email)
+}
+
+// deleteAccountSecrets removes everything Termail keeps for an address in
+// the Windows Credential Manager: the password / app password and the
+// Google or Microsoft refresh token (missing entries are fine).
+func deleteAccountSecrets(email string) {
 	_ = account.DeleteSecret(email, account.SecretPassword)
 	_ = account.DeleteSecret(email, account.SecretRefresh)
 }

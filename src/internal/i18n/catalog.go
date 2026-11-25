@@ -552,6 +552,10 @@ var enUS = map[string]string{
 	"──── İletilen ileti: ": "──── Forwarded message: ",
 	"● %d yeni":             "● %d new",
 
+	// account removal
+	"Çıkış yap":     "Sign out",
+	"hesabı kaldır": "remove account",
+
 	// Google sign-in
 	"Google ile giriş bu sürümde yapılandırılmamış. Uygulama şifresiyle girebilirsin.":                                    "Google sign-in is not configured in this build. You can sign in with an app password.",
 	"Google bu hesabın girişine izin vermedi. Hesabın programın test kullanıcıları arasında olmalı.":                      "Google did not allow this account to sign in. The account must be one of the app's test users.",

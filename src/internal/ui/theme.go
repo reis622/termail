@@ -117,6 +117,8 @@ func hintToKey(k string) string {
 		return "ctrl+o"
 	case "F2":
 		return "f2"
+	case "Del":
+		return "delete"
 	case "↑↓", "↑", "↓":
 		return ""
 	case "h / Esc":

@@ -134,6 +134,13 @@ func (m *Model) showFolderMenu(x, y int, r frow) {
 			m.fcursor = m.folderRowIndex(r)
 			m.focus = focusFolders
 			return m.startNewFolderFor(ai)
+		}}, {i18n.T("Çıkış yap"), "delete", func(m *Model) tea.Cmd {
+			m.fcursor = m.folderRowIndex(r)
+			m.focus = focusFolders
+			if ai >= 0 && ai < len(m.accts) {
+				m.confirmRemoveAccount(ai) // same confirmation as Del
+			}
+			return nil
 		}}})
 		return
 	}

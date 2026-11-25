@@ -276,6 +276,7 @@ Ctrl+S'ye basınca yazma sekmesi hemen kapanır ve "Gönderiliyor…" bildirimi 
 - Destekleyen terminallerde **Ctrl+1–9** de çalışır.
 - Bir iletiyi yanıtladığında, ileti hangi hesaba geldiyse yanıt o hesaptan gider.
 - Klasör panelinde en üstte **Tüm Gelen Kutuları**, altında her hesap kendi okunmamış sayısıyla durur. Hesap satırında Enter, → ya da tıklama klasörlerini açar; Enter ya da ← kapatır. Hangi hesapların açık olduğu hatırlanır. Üst çubukta hesaplar **F2**, **F3** … olarak görünür; etkin hesabın sekmesi dolu bir vurgu rengindedir. Hesap tuşları (F1–F12, Ctrl+A) o hesabı açıp seçer.
+- **Hesabı kaldırmak / çıkış yapmak:** klasör panelinde hesap satırı seçiliyken **Del** (alt çubukta "Del hesabı kaldır", tıklanabilir) ya da hesap satırına sağ tıklayıp **Çıkış yap**. Onay verince hesap bu bilgisayardan kaldırılır ve Windows Kimlik Bilgileri Yöneticisi'ndeki şifresi ya da Google/Microsoft giriş anahtarı da silinir; postalar sunucuda kalır.
 
 ![Hesaplar kapalı](screenshots/28-hesap-kapali.png)
 ![Hesap açık](screenshots/29-hesap-acik.png)
